@@ -1,8 +1,8 @@
 # PROJECT_STATUS.md
 
 ## Current Phase
-**Phase 3 — Database Models + Mentor Seed** ✅ Complete (awaiting review/commit)
-**Next: Phase 4 — Slot Availability API + Timezone Service**
+**Phase 4 — Slot Availability API + Timezone Service** ✅ Complete (awaiting review/commit)
+**Next: Phase 5 — Booking API**
 
 ---
 
@@ -18,6 +18,20 @@
 - Booking window: tomorrow + 6 days = exactly 7 bookable dates
 - Dummy class link: stored in DB, shown on confirmation, accessible via mentor endpoint
 - No auth, no real email, no real video
+
+### Phase 4 — Slot Availability API + Timezone Service
+- `backend/schemas/slots.py` — Pydantic `SlotItem` + `SlotsResponse` schemas
+- `backend/services/timezone_service.py` — IST anchor generation, `zoneinfo` conversions, tz validation
+- `backend/services/slot_service.py` — DB queries for mentor eligibility (slot + daily cap filters)
+- `backend/routers/slots.py` — `GET /api/v1/slots?date=&timezone=` endpoint
+- `backend/main.py` — slots router registered under `/api/v1`
+- `backend/tests/test_timezone.py` — 23 pytest unit tests (IST anchors, UTC conversions, DST, validation)
+- `backend/pytest.ini` — updated with `asyncio_mode = strict`
+- `backend/requirements.txt` — `tzdata==2025.2` pinned
+- Verified: 7 slots returned, UTC canonical values correct, IST/NY/London/DST local display correct
+- Verified: 422 on invalid timezone, bad date format, past date, out-of-range date
+- Verified: 0 bookings in DB → all 7 slots available (all mentors eligible)
+- Pytest: 23/23 passed in 0.11s
 
 ### Phase 3 — Database Models + Mentor Seed
 - `backend/models/mentor.py` — Mentor ORM model (id, name, email, timezone, is_active)
@@ -55,12 +69,7 @@ Nothing currently in progress.
 
 ### Phase 3 — DB Models + Migrations + Seed ✅ COMPLETE
 
-### Phase 4 — Slots API + Timezone Service
-- [ ] `backend/services/timezone_service.py`
-- [ ] `backend/services/slot_service.py`
-- [ ] `backend/routers/slots.py` — GET /api/v1/slots
-- [ ] Register slots router in main.py
-- [ ] Manual test: correct UTC + local display times
+### Phase 4 — Slots API + Timezone Service ✅ COMPLETE
 
 ### Phase 5 — Booking API + Mentor Allocation
 - [ ] `backend/services/booking_service.py` — SERIALIZABLE txn, mentor allocation

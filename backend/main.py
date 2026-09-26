@@ -37,8 +37,9 @@ def health_check():
     return {"status": "ok", "env": settings.app_env}
 
 
-# Routers will be registered here in Phase 3/4 as they are built.
-# Example (do not uncomment yet):
-# from routers import slots, bookings
-# app.include_router(slots.router, prefix="/api/v1")
-# app.include_router(bookings.router, prefix="/api/v1")
+from routers import slots
+
+app.include_router(slots.router, prefix="/api/v1")
+
+
+# Bookings router will be registered here in Phase 5.
