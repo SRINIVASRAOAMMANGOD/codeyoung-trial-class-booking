@@ -1,8 +1,8 @@
 # PROJECT_STATUS.md
 
 ## Current Phase
-**Phase 2 — Project Scaffolding** ✅ Complete (Git checkpoint pending)
-**Next: Phase 3 — Database Models + Migrations + Mentor Seed**
+**Phase 3 — Database Models + Mentor Seed** ✅ Complete (awaiting review/commit)
+**Next: Phase 4 — Slot Availability API + Timezone Service**
 
 ---
 
@@ -18,6 +18,15 @@
 - Booking window: tomorrow + 6 days = exactly 7 bookable dates
 - Dummy class link: stored in DB, shown on confirmation, accessible via mentor endpoint
 - No auth, no real email, no real video
+
+### Phase 3 — Database Models + Mentor Seed
+- `backend/models/mentor.py` — Mentor ORM model (id, name, email, timezone, is_active)
+- `backend/models/booking.py` — Booking ORM model (TIMESTAMPTZ slot_utc, UNIQUE mentor+slot)
+- `backend/models/__init__.py` — imports both models so Base.metadata registers them
+- `backend/db/init_db.py` — creates tables via Base.metadata.create_all() (idempotent)
+- `backend/db/seed.py` — seeds 10 mentors, idempotent (checks by email before inserting)
+- DB verified: tables created, TIMESTAMPTZ confirmed, UNIQUE constraint in place
+- Seed verified: 10 mentors inserted, second run skips all 10 correctly
 
 ### Phase 2 — Scaffolding
 - `backend/requirements.txt` — pinned dependencies
@@ -44,12 +53,7 @@ Nothing currently in progress.
 
 ## Remaining (Required)
 
-### Phase 3 — DB Models + Migrations + Seed
-- [ ] `backend/models/mentor.py` — Mentor ORM model
-- [ ] `backend/models/booking.py` — Booking ORM model
-- [ ] `backend/db/seed.py` — Seed 10 mentors
-- [ ] Create DB tables (SQLAlchemy `create_all` for now; Alembic optional)
-- [ ] Verify DB connection + seed runs successfully
+### Phase 3 — DB Models + Migrations + Seed ✅ COMPLETE
 
 ### Phase 4 — Slots API + Timezone Service
 - [ ] `backend/services/timezone_service.py`
@@ -126,14 +130,24 @@ frontend/
 
 ---
 
-## Database Schema (planned, not yet created)
+## Database Schema ✅ Created and verified in PostgreSQL 18
 
 ```sql
-mentors  (id, name, email, timezone, is_active)
-bookings (id, parent_name, parent_email, child_name, parent_timezone,
-          slot_utc TIMESTAMPTZ, mentor_id FK, class_link, status, created_at)
-UNIQUE (mentor_id, slot_utc)
+mentors  (id SERIAL PK, name VARCHAR(100), email VARCHAR(150) UNIQUE,
+          timezone VARCHAR(50) DEFAULT 'Asia/Kolkata', is_active BOOLEAN)
+bookings (id SERIAL PK, parent_name VARCHAR(100), parent_email VARCHAR(150),
+          child_name VARCHAR(100), parent_timezone VARCHAR(50),
+          slot_utc TIMESTAMPTZ NOT NULL, mentor_id INTEGER FK,
+          class_link VARCHAR(255), status VARCHAR(20) DEFAULT 'confirmed',
+          created_at TIMESTAMPTZ DEFAULT NOW())
+UNIQUE (mentor_id, slot_utc)  -- name: uq_mentor_slot_utc
 ```
+
+Confirmed:
+- slot_utc = `timestamp with time zone` (TIMESTAMPTZ) ✅
+- created_at = `timestamp with time zone` (TIMESTAMPTZ) ✅
+- UNIQUE constraint `uq_mentor_slot_utc` on (mentor_id, slot_utc) ✅
+- 10 mentor rows seeded, idempotent seed verified ✅
 
 ---
 
@@ -150,15 +164,25 @@ UNIQUE (mentor_id, slot_utc)
 | Dummy link | UUID-based, on-screen only | B — Engineering inference |
 | Auth | None | B — Not required |
 | Email | None | B — Not required |
+| DB migrations | `create_all()` not Alembic | C — Intentional scope decision |
 
 ---
 
-## Known Issues / Risks
-- None at this stage.
+## Intentional Scope Decisions
+
+- **Migrations (`create_all()` vs Alembic):** Database tables are created using
+  `SQLAlchemy Base.metadata.create_all()` via `db/init_db.py`. Alembic (a dedicated
+  migration tool) is deliberately excluded from this assessment. Reasons:
+  - The schema is defined once and does not require incremental migrations.
+  - Alembic adds non-trivial setup complexity (migration scripts, env.py, version
+    history) that is unnecessary for a self-contained assessment submission.
+  - `create_all()` is idempotent for table creation (IF NOT EXISTS semantics).
+  - In a production system, Alembic would be the correct choice.
+  - This decision is documented in README.md under Assumptions/Limitations.
 
 ---
 
 ## Important Notes
 - Python 3.9+ required (for `zoneinfo` stdlib)
-- PostgreSQL 12+ required (for SERIALIZABLE SSI correctness)
+- PostgreSQL 18 in use locally (12+ required minimum for SERIALIZABLE SSI)
 - Backend runs on port 8000; frontend dev server on port 5173

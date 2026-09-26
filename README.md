@@ -26,6 +26,7 @@ A web application that allows parents to book a free trial coding class with a C
 
 ## Quick Start (Development)
 
+
 > Prerequisites: Python 3.9+, Node.js 18+, PostgreSQL 12+
 
 ### Backend
@@ -36,6 +37,8 @@ python -m venv .venv
 .venv\Scripts\activate        # Windows
 pip install -r requirements.txt
 cp .env.example .env          # Edit DATABASE_URL in .env
+python -m db.init_db          # Create database tables
+python -m db.seed             # Seed 10 mentor records
 uvicorn main:app --reload
 ```
 
@@ -50,4 +53,24 @@ npm run dev
 
 ---
 
-*README will be expanded with full setup, architecture, API reference, design decisions, and assumptions in Phase 10.*
+## Assumptions and Limitations
+
+- **Database migrations:** Tables are created using `SQLAlchemy Base.metadata.create_all()`
+  via `db/init_db.py` rather than Alembic. This is an intentional scope decision for this
+  assessment — the schema is defined once and does not require incremental migration support.
+  In a production system, Alembic would be the appropriate tool.
+
+- **Booking window:** 15:00–22:00 IST, 1-hour slots (product decision, not an assignment
+  requirement). Chosen to balance India mentor hours with US/UK parent availability.
+
+- **Booking dates:** Parents may book from tomorrow through 6 days after tomorrow (7
+  calendar dates). Same-day booking is excluded to avoid past-slot complexity.
+
+- **Authentication:** None. Not required by the assignment.
+
+- **Email delivery:** Not implemented. The dummy class link is shown on the confirmation
+  screen only. In production, it would be emailed to both parent and mentor.
+
+---
+
+*README will be expanded with full architecture, API reference, and design decisions in Phase 10.*
