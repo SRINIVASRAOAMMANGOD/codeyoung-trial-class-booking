@@ -1,0 +1,49 @@
+/* Global CSS variables and resets.
+   Component-specific styles live in their own CSS files. */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+:root {
+  --color-primary: #4f46e5;        /* Indigo */
+  --color-primary-hover: #4338ca;
+  --color-success: #059669;        /* Emerald */
+  --color-error: #dc2626;          /* Red */
+  --color-warning: #d97706;        /* Amber */
+  --color-text: #111827;           /* Near black */
+  --color-text-muted: #6b7280;     /* Gray 500 */
+  --color-border: #e5e7eb;         /* Gray 200 */
+  --color-bg: #f9fafb;             /* Gray 50 */
+  --color-surface: #ffffff;
+
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.08);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.10);
+
+  --font-family: 'Inter', system-ui, sans-serif;
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--font-family);
+  background-color: var(--color-bg);
+  color: var(--color-text);
+  line-height: 1.6;
+  min-height: 100vh;
+}
+
+button {
+  cursor: pointer;
+  font-family: inherit;
+}
+
+input, select {
+  font-family: inherit;
+}
