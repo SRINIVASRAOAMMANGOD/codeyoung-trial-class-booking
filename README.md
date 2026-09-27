@@ -119,39 +119,71 @@ Authentication/RBAC is **not implemented**. These screens are demonstration/inte
 
 ## 4. Application Architecture
 
-```text
-React + Vite
-        |
-        | REST/JSON
-        v
-FastAPI Modular Monolith
-        |
-        +-- Routers / API Layer
-        |
-        +-- Service Layer
-        |     +-- Booking Service
-        |     +-- Slot / Timezone Service
-        |     +-- Course Service
-        |     +-- Parent Service
-        |     +-- Admin Service
-        |     +-- Email Service
-        |
-        +-- Pydantic Schemas
-        |
-        +-- SQLAlchemy Models
-        |
-        v
-PostgreSQL
+```mermaid
+flowchart LR
+        subgraph FE[FRONTEND]
+                UI[React + Vite]
+                PUBLIC[Landing Page<br/>Course Catalogue<br/>Booking Flow]
+                STAFF[Staff Portal<br/>Admin Dashboard<br/>Mentor View]
+                NAV[Navigation / Routing<br/>Responsive UI]
+                UI --> PUBLIC
+                UI --> STAFF
+                UI --> NAV
+        end
 
-Email Service
-        |
-        v
-SMTP Provider (when SMTP mode is configured)
+        subgraph BE[FASTAPI BACKEND - MODULAR MONOLITH]
+                subgraph API[API / ROUTER LAYER]
+                        ROUTES[Health | Courses | Slots<br/>Bookings | Admin | Mentor<br/>Email Resend]
+                end
+
+                subgraph SERVICES[SERVICE LAYER]
+                        BOOK[Booking Service<br/>Mentor allocation<br/>Slot availability<br/>Daily capacity<br/>Booking validation]
+                        TIME[Slot / Timezone Service<br/>IST anchors | UTC conversion<br/>IANA conversion | DST handling]
+                        COURSE[Course Service<br/>Active-course listing<br/>Course validation]
+                        PARENT[Parent Service<br/>Parent lookup and creation]
+                        ADMIN[Admin Service<br/>Mentor management<br/>Parent / booking visibility]
+                        EMAIL[Email Service<br/>Parent confirmation<br/>Mentor notification<br/>Email resend<br/>Console / SMTP mode]
+                end
+
+                subgraph VALID[VALIDATION / SCHEMA LAYER]
+                        PYD[Pydantic Schemas]
+                end
+
+                subgraph DATA[DATA LAYER]
+                        ORM[SQLAlchemy Models]
+                        TX[Database Session<br/>Transactions]
+                end
+
+                ROUTES --> SERVICES
+                ROUTES --> PYD
+                SERVICES --> ORM
+                SERVICES --> TX
+                ORM --> TX
+        end
+
+        subgraph DB[POSTGRESQL]
+                TABLES[Parents | Mentors | Courses | Bookings<br/>Constraints | Relationships]
+        end
+
+        subgraph OUT[EMAIL DELIVERY]
+                SMTP[SMTP Provider<br/>Gmail or other SMTP]
+                CONSOLE[Console Backend]
+                RECIPIENTS[Parent Email<br/>Mentor Email]
+                SMTP --> RECIPIENTS
+                CONSOLE --> RECIPIENTS
+        end
+
+        FE -->|REST / JSON| API
+        TX -->|SQLAlchemy ORM| TABLES
+        EMAIL --> SMTP
+        EMAIL --> CONSOLE
 ```
 
-The application uses domain-oriented service modules inside one FastAPI application. This keeps business logic separated without introducing unnecessary distributed-system complexity. The services are modules in a modular monolith, not microservices.
+The application follows a modular monolith architecture. The React frontend communicates with a single FastAPI application through REST APIs. Within the backend, routers handle HTTP concerns while domain-oriented service modules contain business logic for booking, scheduling/timezones, courses, parents, administration, and email. Pydantic schemas handle API validation and SQLAlchemy models provide the persistence layer over PostgreSQL.
 
-The frontend structure is centered on `App.jsx`, page components, reusable booking/landing/staff components, centralized API clients, and CSS. The backend separates routers, schemas, services, models, database setup, and explicit database scripts.
+Although the backend contains multiple services, these are modules within one deployable FastAPI application, not independent microservices.
+
+This approach was chosen because booking and mentor allocation are transaction-sensitive and share one relational data boundary. A microservices split would add network calls, distributed transaction concerns, deployment overhead, and operational complexity without a clear benefit at the scale of this assessment.
 
 ## 5. Why Not Microservices?
 
