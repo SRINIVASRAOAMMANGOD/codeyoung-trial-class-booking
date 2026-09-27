@@ -8,4 +8,5 @@
 
 from models.mentor import Mentor  # noqa: F401
 from models.parent import Parent  # noqa: F401
+from models.course import Course  # noqa: F401
 from models.booking import Booking  # noqa: F401

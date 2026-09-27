@@ -37,8 +37,9 @@ def health_check():
     return {"status": "ok", "env": settings.app_env}
 
 
-from routers import admin, bookings, slots
+from routers import admin, bookings, slots, courses
 
 app.include_router(slots.router, prefix="/api/v1")
 app.include_router(bookings.router, prefix="/api/v1")
 app.include_router(admin.router, prefix="/api/v1")
+app.include_router(courses.router, prefix="/api/v1")

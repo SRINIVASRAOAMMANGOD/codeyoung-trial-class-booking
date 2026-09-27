@@ -76,3 +76,12 @@ export async function getMentorSchedule(mentorId) {
   const res = await fetch(`${BASE_URL}/api/v1/admin/mentors/${mentorId}/schedule`);
   return handleResponse(res);
 }
+
+export async function resendEmail(bookingId, payload) {
+  const res = await fetch(`${BASE_URL}/api/v1/admin/bookings/${bookingId}/resend-email`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  return handleResponse(res);
+}

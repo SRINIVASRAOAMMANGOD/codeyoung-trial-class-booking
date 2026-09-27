@@ -88,6 +88,7 @@ class TestEmailFormattingAndContent:
             slot_utc=slot_utc,
             class_link="https://class.codeyoung.com/room/test-link-xyz",
             status="confirmed",
+            course_id=1,
         )
 
         parent_email = build_parent_email_content(booking)
@@ -132,6 +133,7 @@ class TestConsoleDispatchAndQueue:
             slot_utc=slot_utc,
             class_link="https://class.codeyoung.com/room/diana-cassie",
             status="confirmed",
+            course_id=1,
         )
 
         results = send_booking_notifications(booking)
@@ -160,8 +162,9 @@ class TestBookingCommitBeforeNotification:
                 parent_name="Clark Kent",
                 parent_email="clark@dailyplanet.com",
                 child_name="Jon Kent",
+                course_id=1,
                 parent_timezone="America/New_York",
-                slot_utc=datetime(2026, 9, 29, 9, 30, tzinfo=timezone.utc),
+                slot_utc=datetime(2026, 9, 30, 9, 30, tzinfo=timezone.utc),
             )
 
             booking = create_booking(db=db, booking_in=booking_in)
@@ -189,6 +192,7 @@ class TestBookingCommitBeforeNotification:
                 parent_name="Barry Allen",
                 parent_email="barry@centralcity.gov",
                 child_name="Bart Allen",
+                course_id=1,
                 parent_timezone="America/New_York",
                 slot_utc=datetime(2026, 9, 29, 9, 30, tzinfo=timezone.utc),
             )
@@ -210,3 +214,84 @@ class TestSmtpConfigurationValidation:
 
             with pytest.raises(EmailConfigurationError, match="SMTP_HOST must be configured"):
                 dispatch_email({"recipient": "test@example.com", "body_text": "hello", "subject": "test"})
+
+class TestResendEmail:
+    """Verifies resend email functionality with default and custom overrides."""
+
+    def test_resend_to_default_recipient(self, db):
+        from services.admin_service import resend_booking_email
+        from schemas.admin import ResendEmailRequest
+
+        # Seed data
+        parent = Parent(name="Tony Stark", email="tony@stark.com")
+        mentor = Mentor(name="Peter Parker", email="peter@codeyoung.com", timezone="Asia/Kolkata")
+        slot_utc = datetime(2026, 9, 28, 9, 30, tzinfo=timezone.utc)
+        booking = Booking(
+            parent=parent,
+            mentor=mentor,
+            child_name="Morgan Stark",
+            parent_timezone="America/New_York",
+            slot_utc=slot_utc,
+            class_link="https://class.codeyoung.com/room/test-1",
+            status="confirmed",
+            course_id=1,
+        )
+        db.add(booking)
+        db.commit()
+
+        try:
+            req = ResendEmailRequest(recipient_type="parent", recipient_email="")
+            result = resend_booking_email(db, booking.id, req)
+            
+            assert result["message"] == "Email resent successfully"
+            assert result["recipient"] == "tony@stark.com"
+            
+            emails = get_recent_emails()
+            assert len(emails) == 1
+            assert emails[0]["recipient"] == "tony@stark.com"
+        finally:
+            db.delete(booking)
+            db.delete(parent)
+            db.delete(mentor)
+            db.commit()
+
+    def test_resend_to_edited_recipient_with_custom_subject(self, db):
+        from services.admin_service import resend_booking_email
+        from schemas.admin import ResendEmailRequest
+
+        # Seed data
+        parent = Parent(name="Steve Rogers", email="steve@avengers.com")
+        mentor = Mentor(name="Sam Wilson", email="sam@codeyoung.com", timezone="Asia/Kolkata")
+        slot_utc = datetime(2026, 9, 28, 9, 30, tzinfo=timezone.utc)
+        booking = Booking(
+            parent=parent,
+            mentor=mentor,
+            child_name="Trainee",
+            parent_timezone="America/New_York",
+            slot_utc=slot_utc,
+            class_link="https://class.codeyoung.com/room/test-2",
+            status="confirmed",
+            course_id=1,
+        )
+        db.add(booking)
+        db.commit()
+
+        try:
+            req = ResendEmailRequest(
+                recipient_type="parent", 
+                recipient_email="bucky@avengers.com",
+                custom_subject="Your Rescheduled Class"
+            )
+            result = resend_booking_email(db, booking.id, req)
+            
+            assert result["recipient"] == "bucky@avengers.com"
+            
+            emails = get_recent_emails()
+            assert len(emails) == 1
+            assert emails[0]["recipient"] == "bucky@avengers.com"
+            assert emails[0]["subject"] == "Your Rescheduled Class"
+        finally:
+            db.delete(booking)
+            db.delete(parent)
+            db.delete(mentor)
+            db.commit()

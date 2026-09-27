@@ -87,6 +87,7 @@ Great news! Your 1-on-1 trial coding class for {booking.child_name} has been suc
 SESSION DETAILS:
 --------------------------------------------------
 Student:          {booking.child_name}
+Course:           {booking.course.name if booking.course else "Unknown Course"}
 Assigned Mentor:  {mentor_name}
 Date:             {date_str}
 Scheduled Time:   {time_str}
@@ -140,6 +141,7 @@ You have been assigned to conduct a 1-on-1 trial coding demo class.
 SESSION DETAILS:
 --------------------------------------------------
 Student:          {booking.child_name}
+Course:           {booking.course.name if booking.course else "Unknown Course"}
 Parent:           {parent_name}
 Date:             {date_str}
 Scheduled Time:   {time_str}

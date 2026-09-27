@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import Header from '../components/Header';
 import AlertBanner from '../components/AlertBanner';
+import ResendEmailModal from '../components/ResendEmailModal';
 import { getMentors, getMentorSchedule } from '../api/adminApi';
 
 function MentorPage({ currentView, onViewChange }) {
@@ -11,6 +12,7 @@ function MentorPage({ currentView, onViewChange }) {
   const [schedule, setSchedule] = useState([]);
   const [loading, setLoading] = useState(false);
   const [alert, setAlert] = useState(null);
+  const [resendEmailBooking, setResendEmailBooking] = useState(null);
 
   // Load mentors list on mount
   useEffect(() => {
@@ -63,7 +65,6 @@ function MentorPage({ currentView, onViewChange }) {
       <main className="booking-container mentor-view-container">
         {/* Notice Banner */}
         <div className="internal-notice-badge">
-          <span className="notice-icon">👩‍🏫</span>
           <span>
             <strong>Internal Demo Mentor View</strong> — Demonstration view for mentor schedule and class link visibility without production login.
           </span>
@@ -157,6 +158,7 @@ function MentorPage({ currentView, onViewChange }) {
                     <th>Time Window (IST)</th>
                     <th>Status</th>
                     <th>Classroom Meeting Link</th>
+                    <th>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -183,6 +185,15 @@ function MentorPage({ currentView, onViewChange }) {
                           Join Class Room ↗
                         </a>
                       </td>
+                      <td>
+                        <button
+                          type="button"
+                          className="btn btn-secondary btn-xs"
+                          onClick={() => setResendEmailBooking(item)}
+                        >
+                          Resend Email
+                        </button>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -190,6 +201,13 @@ function MentorPage({ currentView, onViewChange }) {
             </div>
           )}
         </div>
+
+        {resendEmailBooking && (
+          <ResendEmailModal
+            booking={resendEmailBooking}
+            onClose={() => setResendEmailBooking(null)}
+          />
+        )}
       </main>
     </div>
   );

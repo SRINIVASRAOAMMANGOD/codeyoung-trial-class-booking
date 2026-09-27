@@ -62,6 +62,7 @@ class ParentAdminResponse(BaseModel):
 class ParentBookingDetail(BaseModel):
     id: int
     child_name: str
+    course_name: str
     mentor_id: int
     mentor_name: str
     slot_utc: datetime
@@ -77,6 +78,7 @@ class AdminBookingResponse(BaseModel):
     parent_name: str
     parent_email: str
     child_name: str
+    course_name: str
     mentor_id: int
     mentor_name: str
     slot_utc: datetime
@@ -91,6 +93,7 @@ class AdminBookingResponse(BaseModel):
 class MentorScheduleItem(BaseModel):
     id: int
     student_name: str
+    course_name: str
     parent_name: str
     parent_email: str
     slot_utc: datetime
@@ -98,3 +101,8 @@ class MentorScheduleItem(BaseModel):
     class_time_ist: str
     class_link: str
     status: str
+
+class ResendEmailRequest(BaseModel):
+    recipient_email: str
+    recipient_type: str = Field(..., description="Either 'parent' or 'mentor'")
+    custom_subject: str | None = None

@@ -14,6 +14,7 @@ class BookingCreate(BaseModel):
     parent_name: str
     parent_email: str
     child_name: str
+    course_id: int
 
     # IANA timezone string for the parent (e.g. "America/New_York").
     # Business validation against valid IANA timezones is handled at the
@@ -31,6 +32,8 @@ class BookingResponse(BaseModel):
     parent_name: str
     parent_email: str
     child_name: str
+    course_id: int
+    course_name: str
     parent_timezone: str
     slot_utc: datetime
     mentor_id: int

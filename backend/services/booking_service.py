@@ -24,6 +24,7 @@ from sqlalchemy.orm import Session, joinedload
 
 from models.booking import Booking
 from models.mentor import Mentor
+from models.course import Course
 from schemas.booking import BookingCreate
 from services.email_service import send_booking_notifications
 from services.parent_service import get_or_create_parent
@@ -167,6 +168,9 @@ def create_booking(db: Session, booking_in: BookingCreate) -> Booking:
     """
     # 1. Validation
     validate_booking_input(booking_in.slot_utc, booking_in.parent_timezone)
+    course = db.query(Course).filter(Course.id == booking_in.course_id).first()
+    if not course or not course.is_active:
+        raise BookingValidationError(f"Invalid or inactive course ID: {booking_in.course_id}")
 
     # 2. Derive IST calendar date
     ist_dt = booking_in.slot_utc.astimezone(_IST)
@@ -197,11 +201,13 @@ def create_booking(db: Session, booking_in: BookingCreate) -> Booking:
                 parent_timezone=booking_in.parent_timezone.strip(),
                 slot_utc=booking_in.slot_utc,
                 mentor_id=mentor.id,
+                course_id=course.id,
                 class_link=generate_class_link(),
                 status="confirmed",
             )
             booking.parent = parent
             booking.mentor = mentor
+            booking.course = course
             db.add(booking)
             db.commit()
             db.refresh(booking)
@@ -242,7 +248,7 @@ def get_booking_by_id(db: Session, booking_id: int) -> Booking | None:
     """Retrieve a booking by its primary key ID."""
     return (
         db.query(Booking)
-        .options(joinedload(Booking.parent))
+        .options(joinedload(Booking.parent), joinedload(Booking.course))
         .filter(Booking.id == booking_id)
         .first()
     )
@@ -260,7 +266,7 @@ def get_mentor_bookings(
     """
     query = (
         db.query(Booking)
-        .options(joinedload(Booking.parent))
+        .options(joinedload(Booking.parent), joinedload(Booking.course))
         .filter(Booking.status == status)
     )
     if mentor_id is not None:

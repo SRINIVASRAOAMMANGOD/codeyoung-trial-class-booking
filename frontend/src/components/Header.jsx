@@ -1,51 +1,75 @@
 // Header.jsx — Brand header, title, and view switcher navigation.
 
-function Header({ currentView = 'booking', onViewChange }) {
+function Header({ currentView = 'booking', onViewChange, onBackToLanding }) {
   return (
-    <header className="app-header">
-      {/* View Switcher Bar */}
-      {onViewChange && (
-        <nav className="view-switcher-nav" aria-label="Portal Navigation">
-          <button
-            type="button"
-            className={`view-nav-btn ${currentView === 'booking' ? 'active' : ''}`}
-            onClick={() => onViewChange('booking')}
-          >
-            📅 Parent Booking
-          </button>
-          <button
-            type="button"
-            className={`view-nav-btn ${currentView === 'admin' ? 'active' : ''}`}
-            onClick={() => onViewChange('admin')}
-          >
-            🛡️ Admin Dashboard
-          </button>
-          <button
-            type="button"
-            className={`view-nav-btn ${currentView === 'mentor' ? 'active' : ''}`}
-            onClick={() => onViewChange('mentor')}
-          >
-            👩‍🏫 Mentor View
-          </button>
-        </nav>
-      )}
+    <>
+      <header className={currentView === 'booking' ? "landing-header" : "internal-app-header"} role="banner">
+        <div className={currentView === 'booking' ? "landing-header-inner" : "internal-header-left"}>
+          {currentView === 'booking' ? (
+            <button 
+              type="button"
+              className="landing-logo" 
+              onClick={onBackToLanding}
+              aria-label="Back to Codeyoung Home"
+            >
+              <span className="logo-text">Codeyoung</span>
+            </button>
+          ) : (
+            <button 
+              type="button"
+              className="internal-brand" 
+              onClick={() => onViewChange('staff')}
+              style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}
+              aria-label="Back to Staff Portal"
+            >
+              CODEYOUNG STAFF
+            </button>
+          )}
+        </div>
 
-      <div className="brand-badge">Codeyoung</div>
-      <h1 className="header-title">
-        {currentView === 'admin'
-          ? 'Operational Admin Dashboard'
-          : currentView === 'mentor'
-          ? 'Mentor Assignment Portal'
-          : 'Book a Free Trial Coding Class'}
-      </h1>
-      <p className="header-subtitle">
-        {currentView === 'admin'
-          ? 'Monitor dynamic mentor capacity, manage roster, inspect parent accounts, and review confirmed bookings.'
-          : currentView === 'mentor'
-          ? 'View your assigned trial demo classes, student contacts, and classroom room links in India Standard Time.'
-          : '1-on-1 interactive session with an expert mentor. Select your convenient date and local time.'}
-      </p>
-    </header>
+        {onViewChange && currentView !== 'booking' && (
+          <nav className="internal-app-nav" aria-label="Portal Navigation">
+            <button
+              type="button"
+              className={`internal-nav-link ${currentView === 'staff' ? 'active' : ''}`}
+              onClick={() => onViewChange('staff')}
+            >
+              Staff Home
+            </button>
+            <button
+              type="button"
+              className={`internal-nav-link ${currentView === 'admin' ? 'active' : ''}`}
+              onClick={() => onViewChange('admin')}
+            >
+              Admin Dashboard
+            </button>
+            <button
+              type="button"
+              className={`internal-nav-link ${currentView === 'mentor' ? 'active' : ''}`}
+              onClick={() => onViewChange('mentor')}
+            >
+              Mentor View
+            </button>
+          </nav>
+        )}
+      </header>
+
+      {/* Page Title Banner - only for admin/mentor/staff as booking form is self-contained */}
+      {currentView !== 'booking' && currentView !== 'staff' && (
+        <div className="internal-page-banner">
+          <h1 className="header-title">
+            {currentView === 'admin'
+              ? 'Operational Admin Dashboard'
+              : 'Mentor Assignment Portal'}
+          </h1>
+          <p className="header-subtitle">
+            {currentView === 'admin'
+              ? 'Monitor dynamic mentor capacity, manage roster, inspect parent accounts, and review confirmed bookings.'
+              : 'View your assigned trial demo classes, student contacts, and classroom room links in India Standard Time.'}
+          </p>
+        </div>
+      )}
+    </>
   );
 }
 

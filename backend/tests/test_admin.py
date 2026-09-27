@@ -126,11 +126,12 @@ class TestAdminEndpoints:
 
         try:
             # Verify they are excluded from allocation
-            slot = datetime(2026, 9, 29, 9, 30, tzinfo=timezone.utc)
+            slot = datetime(2026, 10, 1, 9, 30, tzinfo=timezone.utc)
             booking_in = BookingCreate(
                 parent_name="Parent Test",
                 parent_email="parent_test@test.com",
                 child_name="Child Test",
+                course_id=1,
                 parent_timezone="America/New_York",
                 slot_utc=slot,
             )
@@ -168,7 +169,8 @@ class TestAdminEndpoints:
         assert "IST" in first["mentor_ist_time"]
 
     def test_mentor_internal_schedule_endpoint(self, db):
-        booking = db.query(Booking).first()
+        from models.mentor import Mentor
+        booking = db.query(Booking).join(Mentor, Booking.mentor_id == Mentor.id).first()
         assert booking is not None
         mentor_id = booking.mentor_id
 

@@ -25,6 +25,12 @@ from schemas.admin import (
     MentorScheduleItem,
     ParentAdminResponse,
     ParentBookingDetail,
+    ResendEmailRequest,
+)
+from services.email_service import (
+    build_parent_email_content,
+    build_mentor_email_content,
+    dispatch_email,
 )
 from services.timezone_service import get_ist_date_today, validate_timezone
 
@@ -197,7 +203,7 @@ def get_parent_bookings(db: Session, parent_id: int) -> list[ParentBookingDetail
 
     bookings = (
         db.query(Booking)
-        .options(joinedload(Booking.mentor))
+        .options(joinedload(Booking.mentor), joinedload(Booking.course))
         .filter(Booking.parent_id == parent_id)
         .order_by(Booking.slot_utc.desc())
         .all()
@@ -214,6 +220,7 @@ def get_parent_bookings(db: Session, parent_id: int) -> list[ParentBookingDetail
             ParentBookingDetail(
                 id=b.id,
                 child_name=b.child_name,
+                course_name=b.course.name if b.course else "Unknown Course",
                 mentor_id=b.mentor_id,
                 mentor_name=b.mentor.name if b.mentor else "Assigned Mentor",
                 slot_utc=b.slot_utc,
@@ -232,7 +239,7 @@ def get_admin_bookings(db: Session) -> list[AdminBookingResponse]:
     """
     bookings = (
         db.query(Booking)
-        .options(joinedload(Booking.parent), joinedload(Booking.mentor))
+        .options(joinedload(Booking.parent), joinedload(Booking.mentor), joinedload(Booking.course))
         .order_by(Booking.slot_utc.desc())
         .all()
     )
@@ -260,6 +267,7 @@ def get_admin_bookings(db: Session) -> list[AdminBookingResponse]:
                 parent_name=b.parent.name if b.parent else b.parent_name,
                 parent_email=b.parent.email if b.parent else b.parent_email,
                 child_name=b.child_name,
+                course_name=b.course.name if b.course else "Unknown Course",
                 mentor_id=b.mentor_id,
                 mentor_name=b.mentor.name if b.mentor else "Assigned Mentor",
                 slot_utc=b.slot_utc,
@@ -284,7 +292,7 @@ def get_mentor_schedule(db: Session, mentor_id: int) -> list[MentorScheduleItem]
 
     bookings = (
         db.query(Booking)
-        .options(joinedload(Booking.parent))
+        .options(joinedload(Booking.parent), joinedload(Booking.course))
         .filter(Booking.mentor_id == mentor_id, Booking.status == "confirmed")
         .order_by(Booking.slot_utc.asc())
         .all()
@@ -301,6 +309,7 @@ def get_mentor_schedule(db: Session, mentor_id: int) -> list[MentorScheduleItem]
             MentorScheduleItem(
                 id=b.id,
                 student_name=b.child_name,
+                course_name=b.course.name if b.course else "Unknown Course",
                 parent_name=b.parent.name if b.parent else b.parent_name,
                 parent_email=b.parent.email if b.parent else b.parent_email,
                 slot_utc=b.slot_utc,
@@ -311,3 +320,24 @@ def get_mentor_schedule(db: Session, mentor_id: int) -> list[MentorScheduleItem]
             )
         )
     return items
+
+def resend_booking_email(db: Session, booking_id: int, req: ResendEmailRequest) -> dict:
+    booking = db.query(Booking).options(joinedload(Booking.parent), joinedload(Booking.course), joinedload(Booking.mentor)).filter(Booking.id == booking_id).first()
+    if not booking:
+        raise ValueError(f"Booking with ID {booking_id} not found.")
+
+    if req.recipient_type == "parent":
+        email_data = build_parent_email_content(booking)
+    elif req.recipient_type == "mentor":
+        email_data = build_mentor_email_content(booking)
+    else:
+        raise ValueError(f"Invalid recipient_type: {req.recipient_type}")
+
+    if req.recipient_email:
+        email_data["recipient"] = req.recipient_email
+    
+    if req.custom_subject:
+        email_data["subject"] = req.custom_subject
+
+    dispatch_email(email_data)
+    return {"message": "Email resent successfully", "recipient": email_data["recipient"]}

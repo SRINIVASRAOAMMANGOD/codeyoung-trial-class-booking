@@ -7,10 +7,11 @@ import ParentDetailsForm from '../components/ParentDetailsForm';
 import TimezoneDatePicker from '../components/TimezoneDatePicker';
 import SlotPicker from '../components/SlotPicker';
 import BookingConfirmation from '../components/BookingConfirmation';
-import { getSlots, createBooking } from '../api/bookingApi';
+import CourseSelector from '../components/CourseSelector';
+import { getSlots, createBooking, getCourses } from '../api/bookingApi';
 import { getBookableDates, isValidEmail } from '../utils/dateUtils';
 
-function BookingPage({ currentView, onViewChange }) {
+function BookingPage({ onViewChange, onBackToLanding }) {
   // 1. Initial State
   const initialDates = getBookableDates();
   const defaultDate = initialDates[0]?.isoString || '';
@@ -28,6 +29,17 @@ function BookingPage({ currentView, onViewChange }) {
   });
   const [formErrors, setFormErrors] = useState({});
 
+  const [courses, setCourses] = useState([]);
+  const [loadingCourses, setLoadingCourses] = useState(true);
+  const [selectedCourseId, setSelectedCourseId] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const c = params.get('course');
+      return c ? parseInt(c, 10) : null;
+    }
+    return null;
+  });
+
   const [selectedTimezone, setSelectedTimezone] = useState(defaultTimezone);
   const [selectedDate, setSelectedDate] = useState(defaultDate);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
@@ -40,6 +52,33 @@ function BookingPage({ currentView, onViewChange }) {
   const [submitting, setSubmitting] = useState(false);
   const [alert, setAlert] = useState(null);
   const [confirmedBooking, setConfirmedBooking] = useState(null);
+
+  // Fetch Courses
+  useEffect(() => {
+    let ignore = false;
+    async function fetchAllCourses() {
+      try {
+        const data = await getCourses();
+        if (!ignore) {
+          setCourses(data);
+          // If no course is selected from URL but we have courses, we don't default it (as per requirements).
+        }
+      } catch (err) {
+        if (!ignore) {
+          setAlert({
+            type: 'error',
+            message: 'Failed to load courses. Please refresh the page.',
+          });
+        }
+      } finally {
+        if (!ignore) {
+          setLoadingCourses(false);
+        }
+      }
+    }
+    fetchAllCourses();
+    return () => { ignore = true; };
+  }, []);
 
   // 2. Fetch Slots on Date, Timezone, or Refresh Trigger Change
   useEffect(() => {
@@ -110,6 +149,9 @@ function BookingPage({ currentView, onViewChange }) {
     if (!form.childName.trim() || form.childName.trim().length < 2) {
       errors.childName = "Please enter student's name (minimum 2 characters).";
     }
+    if (!selectedCourseId) {
+      errors.course = 'Please select a course.';
+    }
     if (!selectedSlot) {
       errors.slot = 'Please select a convenient time slot from the list above.';
     }
@@ -133,6 +175,7 @@ function BookingPage({ currentView, onViewChange }) {
         parent_name: form.parentName.trim(),
         parent_email: form.parentEmail.trim(),
         child_name: form.childName.trim(),
+        course_id: selectedCourseId,
         parent_timezone: selectedTimezone,
         slot_utc: selectedSlot.utc_iso,
       };
@@ -186,10 +229,14 @@ function BookingPage({ currentView, onViewChange }) {
   };
 
   return (
-    <div className="booking-page-layout">
-      <Header currentView={currentView} onViewChange={onViewChange} />
+    <div className="landing-page">
+      <Header
+        currentView="booking"
+        onViewChange={onViewChange}
+        onBackToLanding={onBackToLanding}
+      />
 
-      <main className="booking-container">
+      <main className="landing-container" style={{ padding: '3rem 1rem' }}>
         {alert && (
           <AlertBanner
             type={alert.type}
@@ -205,69 +252,79 @@ function BookingPage({ currentView, onViewChange }) {
             onReset={handleReset}
           />
         ) : (
-          <form className="booking-form" onSubmit={handleSubmit} noValidate>
-            <div className="booking-grid">
-              {/* Left Column: Form Details & Date/Timezone */}
-              <div className="booking-column-primary">
-                <ParentDetailsForm
-                  form={form}
-                  errors={formErrors}
-                  onChange={handleFieldChange}
-                />
+          <form className="booking-form-linear" onSubmit={handleSubmit} noValidate>
+            <div className="booking-progress">
+              <div className="progress-step active">1. Course</div>
+              <div className="progress-separator"></div>
+              <div className="progress-step active">2. Date & Timezone</div>
+              <div className="progress-separator"></div>
+              <div className="progress-step active">3. Time Slot</div>
+              <div className="progress-separator"></div>
+              <div className="progress-step active">4. Details</div>
+            </div>
 
-                <TimezoneDatePicker
-                  timezone={selectedTimezone}
-                  onTimezoneChange={handleTimezoneChange}
-                  selectedDate={selectedDate}
-                  onDateChange={handleDateChange}
-                />
-              </div>
+            <div className="booking-steps-stack">
+              <CourseSelector
+                courses={courses}
+                selectedCourseId={selectedCourseId}
+                onSelectCourse={(id) => {
+                  setSelectedCourseId(id);
+                  if (formErrors.course) {
+                    setFormErrors((prev) => ({ ...prev, course: null }));
+                  }
+                }}
+                error={formErrors.course}
+                loading={loadingCourses}
+              />
 
-              {/* Right Column: Slot Picker & Action */}
-              <div className="booking-column-secondary">
-                <SlotPicker
-                  slots={slots}
-                  selectedSlot={selectedSlot}
-                  onSelectSlot={(slot) => {
-                    setSelectedSlot(slot);
-                    if (formErrors.slot) {
-                      setFormErrors((prev) => ({ ...prev, slot: null }));
-                    }
-                  }}
-                  loading={loadingSlots}
-                  error={slotError || formErrors.slot}
-                />
+              <TimezoneDatePicker
+                timezone={selectedTimezone}
+                onTimezoneChange={handleTimezoneChange}
+                selectedDate={selectedDate}
+                onDateChange={handleDateChange}
+              />
+              
+              <SlotPicker
+                slots={slots}
+                selectedSlot={selectedSlot}
+                onSelectSlot={(slot) => {
+                  setSelectedSlot(slot);
+                  if (formErrors.slot) {
+                    setFormErrors((prev) => ({ ...prev, slot: null }));
+                  }
+                }}
+                loading={loadingSlots}
+                error={slotError || formErrors.slot}
+              />
 
-                {/* Submit Action Card */}
-                <div className="card submit-card">
-                  <div className="summary-preview">
-                    <span className="summary-label">Selected Session:</span>
-                    <span className="summary-value">
-                      {selectedSlot
-                        ? `${selectedDate} at ${selectedSlot.local_display ? selectedSlot.local_display.split('T')[1].substring(0, 5) : 'Selected time'}`
-                        : 'No slot selected yet'}
-                    </span>
-                  </div>
+              <ParentDetailsForm
+                form={form}
+                errors={formErrors}
+                onChange={handleFieldChange}
+              />
 
-                  <button
-                    type="submit"
-                    className="btn btn-primary btn-submit"
-                    disabled={submitting || loadingSlots}
-                  >
-                    {submitting ? (
-                      <>
-                        <span className="button-spinner" aria-hidden="true" />
-                        <span>Confirming Booking...</span>
-                      </>
-                    ) : (
-                      'Confirm Free Trial Class'
-                    )}
-                  </button>
-
-                  <p className="submit-footnote">
-                    No credit card required • Instant classroom link confirmation
-                  </p>
+              <div className="submit-section-card card">
+                <div className="submit-summary">
+                  <span className="summary-label">Selected Session:</span>
+                  <span className="summary-value" style={{ fontWeight: '600', marginLeft: '0.5rem', color: 'var(--cy-teal)' }}>
+                    {selectedSlot
+                      ? `${selectedDate} at ${selectedSlot.local_display ? selectedSlot.local_display.split('T')[1].substring(0, 5) : 'Selected time'}`
+                      : 'No slot selected yet'}
+                  </span>
                 </div>
+
+                <button
+                  type="submit"
+                  className="hero-btn-primary"
+                  style={{ width: '100%', maxWidth: '400px', marginTop: '1rem', display: 'flex', justifyContent: 'center' }}
+                  disabled={submitting || loadingSlots}
+                >
+                  {submitting ? 'Confirming Booking...' : 'Confirm Free Trial Class'}
+                </button>
+
+                <p className="submit-footnote" style={{ marginTop: '1rem', fontSize: '0.85rem', color: 'var(--color-text-muted)' }}>
+                  No credit card required • Instant classroom link confirmation
+                </p>
               </div>
             </div>
           </form>

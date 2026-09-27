@@ -81,6 +81,7 @@ class TestParentModelAndRelationships:
             mentor_id=mentor.id,
             class_link="https://class.codeyoung.com/room/test-rel",
             status="confirmed",
+            course_id=1,
         )
         db.add(booking)
         db.commit()
@@ -168,6 +169,7 @@ class TestMigrationIntegrity:
             mentor_id=existing.mentor_id,
             class_link="https://class.codeyoung.com/room/test-dup",
             status="confirmed",
+            course_id=1,
         )
         db.add(duplicate)
         with pytest.raises(IntegrityError):

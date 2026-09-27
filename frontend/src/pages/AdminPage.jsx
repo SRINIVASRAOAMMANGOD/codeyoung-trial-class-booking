@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import Header from '../components/Header';
 import AlertBanner from '../components/AlertBanner';
+import ResendEmailModal from '../components/ResendEmailModal';
 import {
   getOverview,
   getMentors,
@@ -22,6 +23,7 @@ function AdminPage({ currentView, onViewChange }) {
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [alert, setAlert] = useState(null);
+  const [resendEmailBooking, setResendEmailBooking] = useState(null);
 
   // Add Mentor Modal State
   const [showAddMentor, setShowAddMentor] = useState(false);
@@ -159,7 +161,6 @@ function AdminPage({ currentView, onViewChange }) {
       <main className="booking-container admin-container">
         {/* Notice Banner */}
         <div className="internal-notice-badge">
-          <span className="notice-icon">🛡️</span>
           <span>
             <strong>Internal Operational Demo Admin Dashboard</strong> — Demonstration mode for assessment evaluation. No authentication required.
           </span>
@@ -397,6 +398,7 @@ function AdminPage({ currentView, onViewChange }) {
                         <th>Mentor Time (IST)</th>
                         <th>Status</th>
                         <th>Meeting Link</th>
+                        <th>Actions</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -428,6 +430,15 @@ function AdminPage({ currentView, onViewChange }) {
                               >
                                 Join Room ↗
                               </a>
+                            </td>
+                            <td>
+                              <button
+                                type="button"
+                                className="btn btn-secondary btn-xs"
+                                onClick={() => setResendEmailBooking(b)}
+                              >
+                                Resend Email
+                              </button>
                             </td>
                           </tr>
                         ))
@@ -584,6 +595,13 @@ function AdminPage({ currentView, onViewChange }) {
               </div>
             </div>
           </div>
+        )}
+
+        {resendEmailBooking && (
+          <ResendEmailModal
+            booking={resendEmailBooking}
+            onClose={() => setResendEmailBooking(null)}
+          />
         )}
       </main>
     </div>

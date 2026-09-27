@@ -1,30 +1,61 @@
 // App.jsx — Root coordinator.
-// Supports switching between Parent Booking, Admin Dashboard, and Mentor Portal.
+// Default view: 'landing' (public landing page).
+// 'booking' → trial class booking flow.
+// 'admin' → internal operational admin dashboard.
+// 'mentor' → internal demo mentor view.
 
 import { useState, useEffect } from 'react';
+import LandingPage from './pages/LandingPage';
 import BookingPage from './pages/BookingPage';
 import AdminPage from './pages/AdminPage';
 import MentorPage from './pages/MentorPage';
+import StaffPage from './pages/StaffPage';
 
 function App() {
   const [currentView, setCurrentView] = useState(() => {
     if (typeof window !== 'undefined') {
+      const pathname = window.location.pathname;
+      if (pathname.startsWith('/staff')) {
+        return 'staff';
+      }
       const params = new URLSearchParams(window.location.search);
       const v = params.get('view');
-      if (v === 'admin' || v === 'mentor') return v;
+      if (v === 'booking' || v === 'admin' || v === 'mentor' || v === 'staff') return v;
     }
-    return 'booking';
+    return 'landing';
   });
 
-  const handleViewChange = (newView) => {
+  const handleViewChange = (newView, options = {}) => {
     setCurrentView(newView);
     if (typeof window !== 'undefined') {
-      const url = new URL(window.location.href);
-      if (newView === 'booking') {
+      let url = new URL(window.location.href);
+      
+      // If we go to landing, reset to /
+      if (newView === 'landing') {
+        url.pathname = '/';
         url.searchParams.delete('view');
+        url.searchParams.delete('course');
+      } else if (newView === 'staff') {
+        url.pathname = '/staff';
+        url.searchParams.delete('view');
+        url.searchParams.delete('course');
       } else {
-        url.searchParams.set('view', newView);
+        // If we were on /staff, and now go to admin/mentor, we might want to stay on /staff?view=admin
+        // Or revert to /?view=admin. The instructions don't mandate the exact URL for admin/mentor.
+        // Let's just use ?view=admin on the current path, or reset to /?view=admin.
+        if (newView === 'admin' || newView === 'mentor') {
+          url.pathname = '/staff';
+          url.searchParams.set('view', newView);
+        } else {
+          url.pathname = '/';
+          url.searchParams.set('view', newView);
+        }
+        
+        if (options.courseId) {
+          url.searchParams.set('course', options.courseId);
+        }
       }
+      
       window.history.pushState({}, '', url.toString());
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
@@ -32,8 +63,17 @@ function App() {
 
   useEffect(() => {
     const handlePopState = () => {
+      const pathname = window.location.pathname;
       const params = new URLSearchParams(window.location.search);
-      setCurrentView(params.get('view') || 'booking');
+      const v = params.get('view');
+      
+      if (v === 'booking' || v === 'admin' || v === 'mentor' || v === 'staff') {
+        setCurrentView(v);
+      } else if (pathname.startsWith('/staff')) {
+        setCurrentView('staff');
+      } else {
+        setCurrentView('landing');
+      }
     };
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
@@ -47,7 +87,27 @@ function App() {
     return <MentorPage currentView={currentView} onViewChange={handleViewChange} />;
   }
 
-  return <BookingPage currentView={currentView} onViewChange={handleViewChange} />;
+  if (currentView === 'staff') {
+    return (
+      <StaffPage 
+        onViewChange={handleViewChange}
+        onBackToLanding={() => handleViewChange('landing')}
+      />
+    );
+  }
+
+  if (currentView === 'booking') {
+    return (
+      <BookingPage
+        currentView={currentView}
+        onViewChange={handleViewChange}
+        onBackToLanding={() => handleViewChange('landing')}
+      />
+    );
+  }
+
+  // Default: landing page
+  return <LandingPage onBookTrial={(courseId) => handleViewChange('booking', { courseId })} />;
 }
 
 export default App;

@@ -62,6 +62,14 @@ class Booking(Base):
         index=True,
     )
 
+    # Selected course
+    course_id = Column(
+        Integer,
+        ForeignKey("courses.id", ondelete="RESTRICT"),
+        nullable=False,
+        index=True,
+    )
+
     # Dummy class link shown to both parent and mentor.
     # Format: https://class.codeyoung.com/room/<uuid4>
     class_link = Column(String(255), nullable=False)
@@ -80,6 +88,7 @@ class Booking(Base):
     # ORM relationships
     parent = relationship("Parent", back_populates="bookings")
     mentor = relationship("Mentor", back_populates="bookings")
+    course = relationship("Course", back_populates="bookings")
 
     # Backward-compatibility accessors for Pydantic serialization
     @property
@@ -90,6 +99,10 @@ class Booking(Base):
     def parent_email(self) -> str:
         return self.parent.email if self.parent else ""
 
+    @property
+    def course_name(self) -> str:
+        return self.course.name if self.course else ""
+
     __table_args__ = (
         # Double-booking guard
         UniqueConstraint("mentor_id", "slot_utc", name="uq_mentor_slot_utc"),
@@ -97,6 +110,6 @@ class Booking(Base):
 
     def __repr__(self) -> str:
         return (
-            f"<Booking id={self.id} parent_id={self.parent_id} mentor_id={self.mentor_id} "
+            f"<Booking id={self.id} parent_id={self.parent_id} mentor_id={self.mentor_id} course_id={self.course_id} "
             f"slot_utc={self.slot_utc!r} status={self.status!r}>"
         )

@@ -14,7 +14,9 @@ from schemas.admin import (
     MentorScheduleItem,
     MentorStatusUpdateRequest,
     ParentAdminResponse,
+    ParentAdminResponse,
     ParentBookingDetail,
+    ResendEmailRequest,
 )
 from services import admin_service
 
@@ -153,3 +155,19 @@ def get_mentor_schedule(
         return admin_service.get_mentor_schedule(db, id)
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+
+@router.post(
+    "/bookings/{id}/resend-email",
+    summary="Resend booking email to parent or mentor",
+)
+def resend_booking_email(
+    id: int,
+    req: ResendEmailRequest,
+    db: Session = Depends(get_db),
+):
+    try:
+        return admin_service.resend_booking_email(db, id, req)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Failed to send email: {exc}") from exc

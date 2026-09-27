@@ -7,9 +7,9 @@ function AlertBanner({ type = 'error', message, onDismiss }) {
     <div className={`alert-banner alert-${type}`} role="alert">
       <div className="alert-content">
         <span className="alert-icon">
-          {type === 'error' && '⚠️'}
-          {type === 'warning' && '⚡'}
-          {type === 'info' && 'ℹ️'}
+          {type === 'error' && '[!]'}
+          {type === 'warning' && '[!]'}
+          {type === 'info' && '[i]'}
         </span>
         <span className="alert-message">{message}</span>
       </div>

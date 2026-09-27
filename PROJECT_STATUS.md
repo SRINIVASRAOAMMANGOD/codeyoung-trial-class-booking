@@ -19,7 +19,13 @@
 | **Phase 7** | Integration & Edge-Case Testing | ✅ DONE |
 | **Phase 8** | Architecture & Code Quality Audit | ✅ DONE |
 | **Phase 9** | Documentation & Project Finalization | ✅ DONE |
-| **Phase 10** | Admin Management & Parent Entity | 🟡 IN PROGRESS (Steps 1, 2, & 3 Done) |
+| **Phase 10** | Admin Management & Parent Entity | ✅ DONE |
+| **Phase A** | Course Selection Backend | ✅ DONE |
+| **Phase B** | Public Booking UX | ✅ DONE |
+| **Phase B.1** | Public Booking UI Correction | ✅ DONE |
+| **Phase C** | Staff Portal Separation | ✅ DONE |
+| **Phase D** | Email Delivery and Resend | ✅ DONE |
+| **Phase E** | Final Public Site Polish | ✅ DONE |
 
 ---
 
@@ -126,10 +132,42 @@ The application is a fully functional, production-ready recruitment assessment s
 - **Frontend Integration:**
   - Single-page application with top navbar view switcher (`📅 Parent Booking`, `🛡️ Admin Dashboard`, `👩‍🏫 Mentor View`).
   - Clear "Internal Demo / Operational Management" banners noting that production authorization (JWT/RBAC) is required for production.
-- **Quality & Verification:**
-  - 47/47 pytest backend tests passing in ~3.7s.
-  - Frontend `oxlint` passing with 0 warnings and 0 errors across 15 files.
-  - Frontend `vite build` passing with 0 errors in under 1s.
+
+### Phase A — Course Selection Backend (DONE)
+- **Database Model:** `Course` model (`id`, `name`, `description`, `is_active`). Added `course_id` foreign key to `Booking`.
+- **Idempotent Migration:** Created `backend/db/migrate_phase_a.py` to add tables, seed default courses (Coding Fundamentals, Python Programming, Web Development, AI & Robotics), and dynamically backfill legacy bookings without dropping tables.
+- **API Updates:** Added `GET /api/v1/courses`. Updated `POST /api/v1/bookings` to require and validate `course_id`. Added `course_name` dynamically to booking schemas and admin operational endpoints.
+- **Email Notification:** Updated email service templates to dynamically embed `Course` name for both parent and mentor notifications.
+- **Testing:** Implemented `test_courses.py` and updated all existing booking API calls to comply with the new required field. Suite maintains 50/50 pass rate.
+
+### Phase B — Public Booking UX (DONE)
+- **Booking Flow Reorganization:** Refactored `BookingPage.jsx` to enforce a strict logical sequence: (1) Select Course, (2) Choose Date & Timezone, (3) Select Time Slot, (4) Parent & Student Details.
+- **Course Selection Integration:** 
+  - Created `CourseSelector.jsx` component that fetches active courses from `GET /api/v1/courses`.
+  - Added URL parameter routing (`?course=ID`) allowing deep linking directly from the `LandingPage` into the `BookingPage` with preselected courses.
+  - Implemented form validation blocking submission without a valid course.
+- **Header & Navigation UX:**
+  - Modified `Header.jsx` to remove internal App navigation (`Admin Dashboard`, `Mentor View`) when the parent booking form is visible, preventing public exposure of internal tools.
+  - Re-mapped the 'CODEYOUNG' logo to act as a navigation button back to the public `LandingPage`.
+- **Visual Consistency:** Ensure new UI elements map perfectly to predefined CSS tokens from `index.css`.
+- **Testing:** Verified clean linting and successful Vite production build.
+
+### Phase C — Staff Portal Separation (DONE)
+- **Dedicated Routing:** Created a new route (`/staff`) resolving to the `StaffPage.jsx` component, completely isolating internal tools from the public booking experience.
+- **Header Decoupling:** Re-architected `Header.jsx` so that the `Admin` and `Mentor` navigation options are exclusively injected when viewing the Staff Portal or its sub-pages.
+- **Clear Demo Disclaimers:** Explicitly marked the Staff Portal UI with non-dismissible warning banners highlighting the intentional absence of Authentication and RBAC to meet Phase C assessment constraints.
+- **Quality Verified:** Validated through `npm run build` and zero failing tests in `pytest`.
+
+### Phase D — Email Delivery and Resend (DONE)
+- **Email Delivery Integration:** Verified that parent and mentor emails correctly reflect dual timezones and send out canonical timezone formats with correct SMTP settings.
+- **Resend Email Endpoints:** Added `POST /api/v1/admin/bookings/{id}/resend-email` in `admin` router mapping to the backend service.
+- **Admin UI Updates:** Added a `ResendEmailModal.jsx` shared component, allowing admins and mentors to override default recipient email addresses or insert a custom subject line.
+- **Quality Verified:** Added `TestResendEmail` testing suite to explicitly guarantee the backend correctly supports customizable recipient payloads without leaking states between tests. Passed all 52/52 tests.
+
+### Phase E — Final Public Site Polish (DONE)
+- **Footer Updates:** Overhauled the footer to remove "Phase 10" development artifacts. Added the required "Connect with the developer" section linking accurately to the developer's provided LinkedIn, GitHub, and Personal Website. Implemented a clear non-commercial recruitment project disclaimer.
+- **Fake Content Handling:** Re-checked course and testimonial sample data for explicit disclaimers confirming their demonstrative nature.
+- **Accessibility & Polish:** Ensured focus states, semantic buttons, responsive headers, and spacing are well aligned without introducing disruptive dependencies. Verified linting (`0 errors`) and build steps are passing successfully alongside `pytest`.
 
 ---
 

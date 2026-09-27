@@ -46,7 +46,7 @@ function SlotPicker({ slots, selectedSlot, onSelectSlot, loading, error }) {
         </div>
       ) : (
         <div className="slots-empty" role="status">
-          <span className="empty-icon">📅</span>
+          
           <p className="empty-message">
             No trial-class slots are currently available for this date. Please choose another date.
           </p>

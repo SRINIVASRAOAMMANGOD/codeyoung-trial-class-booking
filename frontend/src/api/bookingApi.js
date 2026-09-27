@@ -59,3 +59,12 @@ export async function createBooking(payload) {
   });
   return handleResponse(res);
 }
+
+/**
+ * Fetch available courses.
+ * @returns {Promise<Array<{ id: number, name: string, description: string }>>}
+ */
+export async function getCourses() {
+  const res = await fetch(`${BASE_URL}/api/v1/courses`);
+  return handleResponse(res);
+}
