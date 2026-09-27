@@ -15,6 +15,16 @@ This independent recruitment-assessment demonstration models a trial-class booki
 
 The project is intentionally scoped as a focused assessment implementation, not as the official Codeyoung website or a production platform.
 
+## Live Demo
+
+**Live Application:**  
+https://codeyoung-trial-class-booking.vercel.app
+
+**Backend API:**  
+https://codeyoung-trial-class-booking-deploy.onrender.com
+
+> Note: The backend is hosted on Render's free tier and may take a short time to wake up after inactivity.
+
 ## 2. Assignment Requirements
 
 | Assignment Requirement | Implementation | Evidence/Location |
