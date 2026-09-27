@@ -48,11 +48,17 @@ function CourseCard({ course, onBookTrial }) {
       <button
         type="button"
         className="course-cta-btn"
-        onClick={() => onBookTrial(course.id)}
+        onClick={() => {
+          if (!course.fake) {
+            onBookTrial(course.id);
+          }
+        }}
         id={`course-cta-${course.id}`}
         aria-label={`Book a free trial for ${course.name}`}
+        disabled={course.fake}
+        style={course.fake ? { opacity: 0.6, cursor: 'not-allowed', backgroundColor: '#e2e8f0', color: '#64748b' } : {}}
       >
-        Book Free Trial ↗
+        {course.fake ? 'Coming Soon' : 'Book Free Trial ↗'}
       </button>
     </article>
   );
@@ -78,9 +84,46 @@ function CourseSection({ onBookTrial }) {
             tag: 'Course',
             tagColor: 'tag-gold',
           };
-          return { ...c, ...meta };
+          return { ...c, ...meta, fake: false };
         });
-        setCourses(merged);
+
+        const extraCourses = [
+          {
+            id: 'fake-1',
+            name: 'Game Development',
+            description: 'Design and code your own interactive 2D and 3D games from scratch.',
+            icon: '🎮',
+            age: 'Ages 10–16',
+            level: 'Intermediate',
+            tag: 'Coming Soon',
+            tagColor: 'tag-purple',
+            fake: true
+          },
+          {
+            id: 'fake-2',
+            name: 'App Development',
+            description: 'Learn to build functional mobile applications for iOS and Android.',
+            icon: '📱',
+            age: 'Ages 12–18',
+            level: 'Advanced',
+            tag: 'Coming Soon',
+            tagColor: 'tag-purple',
+            fake: true
+          },
+          {
+            id: 'fake-3',
+            name: 'Data & Analytics',
+            description: 'Discover how to collect, visualize, and understand data through code.',
+            icon: '📊',
+            age: 'Ages 14–18',
+            level: 'Advanced',
+            tag: 'Coming Soon',
+            tagColor: 'tag-purple',
+            fake: true
+          }
+        ];
+
+        setCourses([...merged, ...extraCourses]);
       } catch (err) {
         console.error('Failed to load courses', err);
       } finally {

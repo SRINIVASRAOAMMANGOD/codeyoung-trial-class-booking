@@ -41,6 +41,15 @@ export async function createMentor(payload) {
   return handleResponse(res);
 }
 
+export async function updateMentor(mentorId, payload) {
+  const res = await fetch(`${BASE_URL}/api/v1/admin/mentors/${mentorId}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  return handleResponse(res);
+}
+
 export async function setMentorStatus(mentorId, isActive) {
   const res = await fetch(`${BASE_URL}/api/v1/admin/mentors/${mentorId}/status`, {
     method: 'PATCH',

@@ -62,29 +62,22 @@ function HeroSection({ onBookTrial, onExploreCourses }) {
 
         {/* Right: Visual Illustration */}
         <div className="hero-visual" aria-hidden="true">
-          <div className="hero-card-cluster">
-            <div className="floating-course-card fc-tl">
-              <span className="fc-icon">Py</span>
-              <span className="fc-label">Python</span>
+          <div className="learning-paths-visual">
+            <div className="path-card" style={{ transform: 'rotate(-5deg) translateY(10px)' }}>
+              <div className="path-icon">{'</>'}</div>
+              <div className="path-text">Coding</div>
             </div>
-            <div className="floating-course-card fc-tr">
-              <span className="fc-icon">W3</span>
-              <span className="fc-label">Web Dev</span>
+            <div className="path-card" style={{ transform: 'rotate(5deg) translateY(-10px)' }}>
+              <div className="path-icon">Py</div>
+              <div className="path-text">Python</div>
             </div>
-            <div className="floating-course-card fc-bl">
-              <span className="fc-icon">AI</span>
-              <span className="fc-label">AI &amp; Robotics</span>
+            <div className="path-card" style={{ transform: 'rotate(-2deg)' }}>
+              <div className="path-icon">W3</div>
+              <div className="path-text">Web Dev</div>
             </div>
-            <div className="floating-course-card fc-br">
-              <span className="fc-icon">&lt;/&gt;</span>
-              <span className="fc-label">Coding Basics</span>
-            </div>
-
-            {/* Center avatar placeholder */}
-            <div className="hero-avatar-ring">
-              <div className="hero-avatar">
-                <span className="hero-avatar-icon" aria-label="Student learning">CY</span>
-              </div>
+            <div className="path-card" style={{ transform: 'rotate(4deg) translateY(10px)' }}>
+              <div className="path-icon">AI</div>
+              <div className="path-text">Robotics</div>
             </div>
           </div>
         </div>

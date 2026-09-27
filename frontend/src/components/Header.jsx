@@ -3,55 +3,51 @@
 function Header({ currentView = 'booking', onViewChange, onBackToLanding }) {
   return (
     <>
-      <header className={currentView === 'booking' ? "landing-header" : "internal-app-header"} role="banner">
-        <div className={currentView === 'booking' ? "landing-header-inner" : "internal-header-left"}>
-          {currentView === 'booking' ? (
-            <button 
-              type="button"
-              className="landing-logo" 
-              onClick={onBackToLanding}
-              aria-label="Back to Codeyoung Home"
-            >
-              <span className="logo-text">Codeyoung</span>
-            </button>
-          ) : (
-            <button 
-              type="button"
-              className="internal-brand" 
-              onClick={() => onViewChange('staff')}
-              style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}
-              aria-label="Back to Staff Portal"
-            >
-              CODEYOUNG STAFF
-            </button>
+      <header className="landing-header" role="banner">
+        <div className="landing-header-inner">
+          <button 
+            type="button"
+            className="landing-logo" 
+            onClick={onBackToLanding || (() => onViewChange('landing'))}
+            aria-label="Codeyoung home"
+          >
+            <span className="logo-text">Codeyoung</span>
+          </button>
+
+          {onViewChange && currentView !== 'booking' && (
+            <nav className="internal-app-nav" aria-label="Portal Navigation" style={{ display: 'flex', gap: '1.5rem', alignItems: 'center', marginLeft: 'auto' }}>
+              <button
+                type="button"
+                className={`internal-nav-link ${currentView === 'staff' ? 'active' : ''}`}
+                onClick={() => onViewChange('staff')}
+              >
+                Staff Home
+              </button>
+              <button
+                type="button"
+                className={`internal-nav-link ${currentView === 'admin' ? 'active' : ''}`}
+                onClick={() => onViewChange('admin')}
+              >
+                Admin Dashboard
+              </button>
+              <button
+                type="button"
+                className={`internal-nav-link ${currentView === 'mentor' ? 'active' : ''}`}
+                onClick={() => onViewChange('mentor')}
+              >
+                Mentor View
+              </button>
+              <button
+                type="button"
+                className="internal-nav-link"
+                onClick={() => onViewChange('landing')}
+                style={{ fontWeight: 600, color: 'var(--color-text)', borderLeft: '1px solid var(--color-border)', paddingLeft: '1.5rem' }}
+              >
+                Back to Website
+              </button>
+            </nav>
           )}
         </div>
-
-        {onViewChange && currentView !== 'booking' && (
-          <nav className="internal-app-nav" aria-label="Portal Navigation">
-            <button
-              type="button"
-              className={`internal-nav-link ${currentView === 'staff' ? 'active' : ''}`}
-              onClick={() => onViewChange('staff')}
-            >
-              Staff Home
-            </button>
-            <button
-              type="button"
-              className={`internal-nav-link ${currentView === 'admin' ? 'active' : ''}`}
-              onClick={() => onViewChange('admin')}
-            >
-              Admin Dashboard
-            </button>
-            <button
-              type="button"
-              className={`internal-nav-link ${currentView === 'mentor' ? 'active' : ''}`}
-              onClick={() => onViewChange('mentor')}
-            >
-              Mentor View
-            </button>
-          </nav>
-        )}
       </header>
 
       {/* Page Title Banner - only for admin/mentor/staff as booking form is self-contained */}

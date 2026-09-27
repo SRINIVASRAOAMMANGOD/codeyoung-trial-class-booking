@@ -106,6 +106,30 @@ class TestAdminEndpoints:
         assert react_res.status_code == 200
         assert react_res.json()["is_active"] is True
 
+    def test_mentor_edit(self, db):
+        # Create a mentor to edit
+        unique_email = f"edit_mentor_{int(datetime.now().timestamp())}@codeyoung.com"
+        create_res = client.post("/api/v1/admin/mentors", json={
+            "name": "To Edit",
+            "email": unique_email,
+            "timezone": "Asia/Kolkata",
+        })
+        assert create_res.status_code == 201
+        mentor_id = create_res.json()["id"]
+
+        # Edit the mentor
+        edit_res = client.patch(f"/api/v1/admin/mentors/{mentor_id}", json={
+            "name": "Edited Name",
+            "is_active": False
+        })
+        assert edit_res.status_code == 200
+        assert edit_res.json()["name"] == "Edited Name"
+        assert edit_res.json()["is_active"] is False
+        assert edit_res.json()["email"] == unique_email # shouldn't change
+
+        # Delete it to cleanup
+        client.delete(f"/api/v1/admin/mentors/{mentor_id}")
+
     def test_reject_delete_mentor_with_existing_bookings(self, db):
         # Find mentor with at least one booking
         booking = db.query(Booking).first()

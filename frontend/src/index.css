@@ -2171,7 +2171,7 @@ input, select {
 /* Slots Grid Refactor */
 .slots-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  grid-template-columns: repeat(2, 1fr);
   gap: 0.75rem;
   margin-top: 1.5rem;
 }
@@ -2221,20 +2221,140 @@ input, select {
   gap: 1.5rem;
 }
 
-.tz-group, .dates-container {
+.tz-group {
+  max-width: 400px;
+}
+
+.dates-container {
   width: 100%;
 }
 
+.date-strip {
+  display: grid !important;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.75rem;
+}
+
 @media (min-width: 768px) {
-  .date-tz-section {
-    flex-direction: row;
-    align-items: flex-start;
+  .date-strip {
+    grid-template-columns: repeat(7, 1fr);
   }
-  .tz-group {
-    width: 40%;
+  .slots-grid {
+    grid-template-columns: repeat(4, 1fr);
   }
-  .dates-container {
-    width: 60%;
+}
+.compact-courses-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem;
+  margin-top: 1.5rem;
+}
+
+.compact-course-card {
+  display: flex;
+  flex-direction: column;
+  padding: 1rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background-color: var(--color-surface);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.compact-course-card:hover {
+  border-color: var(--cy-teal);
+}
+
+.compact-course-card.selected {
+  border: 2px solid var(--cy-teal);
+  background-color: var(--cy-teal-light);
+  box-shadow: 0 4px 12px rgba(26, 107, 114, 0.1);
+}
+
+.compact-course-name {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--color-text);
+  margin-bottom: 0.25rem;
+}
+
+.compact-course-desc {
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+  flex-grow: 1;
+  margin-bottom: 0.75rem;
+}
+
+.compact-course-indicator {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+.compact-course-card.selected .compact-course-indicator {
+  color: var(--cy-teal);
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
+}
+
+.learning-paths-visual {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+  max-width: 350px;
+  margin: 0 auto;
+}
+
+.path-card {
+  background: white;
+  padding: 1.5rem;
+  border-radius: var(--radius-lg);
+  box-shadow: 0 10px 25px -5px rgba(26, 107, 114, 0.15);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border: 1px solid var(--color-border);
+  transition: transform 0.3s ease;
+}
+
+.path-card:hover {
+  transform: translateY(-5px) scale(1.05) !important;
+}
+
+.path-icon {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: var(--cy-teal);
+  background: var(--cy-teal-light);
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+}
+
+.path-text {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+@media(min-width: 768px) {
+  .compact-courses-grid {
+    grid-template-columns: repeat(4, 1fr);
   }
 }
 

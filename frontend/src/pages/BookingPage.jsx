@@ -301,31 +301,24 @@ function BookingPage({ onViewChange, onBackToLanding }) {
                 form={form}
                 errors={formErrors}
                 onChange={handleFieldChange}
-              />
-
-              <div className="submit-section-card card">
-                <div className="submit-summary">
-                  <span className="summary-label">Selected Session:</span>
-                  <span className="summary-value" style={{ fontWeight: '600', marginLeft: '0.5rem', color: 'var(--cy-teal)' }}>
-                    {selectedSlot
-                      ? `${selectedDate} at ${selectedSlot.local_display ? selectedSlot.local_display.split('T')[1].substring(0, 5) : 'Selected time'}`
-                      : 'No slot selected yet'}
-                  </span>
+              >
+                <div className="submit-summary" style={{ marginTop: '2rem', padding: '1rem', backgroundColor: '#f8fafc', borderRadius: '8px', border: '1px solid var(--color-border)' }}>
+                  <h4 style={{ marginBottom: '0.75rem', fontWeight: 600, fontSize: '1rem' }}>Booking Summary</h4>
+                  <p style={{ margin: '0.25rem 0', fontSize: '0.9rem' }}><strong>Course:</strong> {courses.find(c => c.id === selectedCourseId)?.name || 'Not selected'}</p>
+                  <p style={{ margin: '0.25rem 0', fontSize: '0.9rem' }}><strong>Date:</strong> {selectedDate || 'Not selected'}</p>
+                  <p style={{ margin: '0.25rem 0', fontSize: '0.9rem' }}><strong>Time:</strong> {selectedSlot ? selectedSlot.local_display : 'Not selected'}</p>
+                  <p style={{ margin: '0.25rem 0', fontSize: '0.9rem' }}><strong>Timezone:</strong> {selectedTimezone}</p>
                 </div>
 
                 <button
                   type="submit"
                   className="hero-btn-primary"
-                  style={{ width: '100%', maxWidth: '400px', marginTop: '1rem', display: 'flex', justifyContent: 'center' }}
+                  style={{ width: '100%', marginTop: '1.5rem', display: 'flex', justifyContent: 'center' }}
                   disabled={submitting || loadingSlots}
                 >
                   {submitting ? 'Confirming Booking...' : 'Confirm Free Trial Class'}
                 </button>
-
-                <p className="submit-footnote" style={{ marginTop: '1rem', fontSize: '0.85rem', color: 'var(--color-text-muted)' }}>
-                  No credit card required • Instant classroom link confirmation
-                </p>
-              </div>
+              </ParentDetailsForm>
             </div>
           </form>
         )}

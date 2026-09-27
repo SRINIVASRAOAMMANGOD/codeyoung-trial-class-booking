@@ -11,6 +11,7 @@ from schemas.admin import (
     AdminOverviewResponse,
     MentorAdminResponse,
     MentorCreateRequest,
+    MentorUpdateRequest,
     MentorScheduleItem,
     MentorStatusUpdateRequest,
     ParentAdminResponse,
@@ -67,6 +68,33 @@ def add_mentor(
     except ValueError as exc:
         msg = str(exc)
         if "already exists" in msg:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=msg) from exc
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=msg) from exc
+
+
+@router.patch(
+    "/mentors/{id}",
+    response_model=MentorAdminResponse,
+    summary="Update mentor details",
+)
+def edit_mentor(
+    id: int,
+    mentor_in: MentorUpdateRequest,
+    db: Session = Depends(get_db),
+) -> MentorAdminResponse:
+    try:
+        mentor = admin_service.update_mentor(db, id, mentor_in)
+        # Fetch full populated representation
+        mentors = admin_service.get_admin_mentors(db)
+        matched = next((m for m in mentors if m.id == id), None)
+        if not matched:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Mentor not found after update.")
+        return matched
+    except ValueError as exc:
+        msg = str(exc)
+        if "not found" in msg.lower():
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=msg) from exc
+        if "already exists" in msg.lower():
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=msg) from exc
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=msg) from exc
 

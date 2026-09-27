@@ -1,8 +1,7 @@
 # PROJECT_STATUS.md — Codeyoung Trial Class Booking System
 
 ## Current Phase
-**Phase 10 — Admin Management, Parent Relationships & Operational Visibility** 🟡 In Progress  
-*(Steps 1, 2, and 3 Complete: Parent Model Normalized, Dual-Mode Email Service, Admin & Mentor Operational Visibility)*
+**Phase C.1 — Staff Portal Finalization** ✅ DONE  
 
 ---
 
@@ -23,7 +22,9 @@
 | **Phase A** | Course Selection Backend | ✅ DONE |
 | **Phase B** | Public Booking UX | ✅ DONE |
 | **Phase B.1** | Public Booking UI Correction | ✅ DONE |
+| **Phase B.2** | Final Booking UX Redesign + Home Login | ✅ DONE |
 | **Phase C** | Staff Portal Separation | ✅ DONE |
+| **Phase C.1** | Staff Portal Finalization | ✅ DONE |
 | **Phase D** | Email Delivery and Resend | ✅ DONE |
 | **Phase E** | Final Public Site Polish | ✅ DONE |
 
@@ -152,11 +153,34 @@ The application is a fully functional, production-ready recruitment assessment s
 - **Visual Consistency:** Ensure new UI elements map perfectly to predefined CSS tokens from `index.css`.
 - **Testing:** Verified clean linting and successful Vite production build.
 
+### Phase B.2 — Final Booking UX Redesign + Home Login (DONE)
+- **Deep-Link Bug Fixed:** Corrected logic in `App.jsx` to pass `courseId` strictly as a primitive value, preventing `[object Object]` parsing failures.
+- **Login Portal Modal:** Implemented a new modal UI in `LandingHeader` allowing navigation to Mentor or Admin portals, and explicitly disabling Student access per requirements.
+- **Hero Redesign:** Removed the generic "CY" circle and replaced it with a multi-course "learning paths" illustrative floating-card layout in `HeroSection.jsx`.
+- **Sample Domains:** Added new fictional/informational domain placeholders directly into the Course Grid, safely handling their "Coming Soon" states.
+- **Booking Progress Flow Redesign:** 
+  - Restyled course cards into a clean 4-column compact Grid (`.compact-courses-grid`).
+  - Adjusted the layout of the Date/Timezone block.
+  - Placed time slots in a symmetrical 4-column (desktop) / 2-column (mobile) layout grid (`.slots-grid`).
+  - Restructured Parent Details into logical sub-headers.
+  - Re-positioned the final checkout summary and "Confirm Booking" CTA directly within the final card frame.
+- **Legal Placeholders:** Upgraded Footer Privacy and Terms placeholders to interactive modest modals displaying the site's primary disclaimer.
+
 ### Phase C — Staff Portal Separation (DONE)
 - **Dedicated Routing:** Created a new route (`/staff`) resolving to the `StaffPage.jsx` component, completely isolating internal tools from the public booking experience.
 - **Header Decoupling:** Re-architected `Header.jsx` so that the `Admin` and `Mentor` navigation options are exclusively injected when viewing the Staff Portal or its sub-pages.
 - **Clear Demo Disclaimers:** Explicitly marked the Staff Portal UI with non-dismissible warning banners highlighting the intentional absence of Authentication and RBAC to meet Phase C assessment constraints.
 - **Quality Verified:** Validated through `npm run build` and zero failing tests in `pytest`.
+
+### Phase C.1 — Staff Portal Finalization (DONE)
+- **Header Standardization:** Left-aligned the Codeyoung brand logo inside the Staff Portal (`Header.jsx`) to exactly match the public Home page positioning.
+- **Logo Navigation Context:** Ensured that clicking the Codeyoung logo universally routes the user back to the public Home page (`/`), breaking out of the internal `/staff` view.
+- **Staff Demo Notice:** Standardized the `/staff` entry page with a professional alert: "Authentication and role-based access control (RBAC) are not implemented. The data shown here is sample/demo data for the recruitment assessment."
+- **Internal Routing Menu:** Consolidated staff navigation to dynamically present "Staff Home | Admin Dashboard | Mentor View" only when actively inside internal portals, supplemented by a clear "Back to Website" exit route.
+- **Mentor Editing (Admin Dashboard):**
+  - **Backend API:** Extended `schemas/admin.py` and `routers/admin.py` with `PATCH /api/v1/admin/mentors/{id}` supporting targeted mutation of name, email, timezone, and active status. Guaranteed email uniqueness and IANA validations.
+  - **Admin UI:** Surfaced an "Edit" action button inside the Mentors Management table (`AdminPage.jsx`). Implemented a polished React state-driven modal for seamless editing without reloading the table.
+- **Verification:** Maintained test integrity with 53 passing tests in Pytest and zero linting/build errors in the Vite frontend.
 
 ### Phase D — Email Delivery and Resend (DONE)
 - **Email Delivery Integration:** Verified that parent and mentor emails correctly reflect dual timezones and send out canonical timezone formats with correct SMTP settings.

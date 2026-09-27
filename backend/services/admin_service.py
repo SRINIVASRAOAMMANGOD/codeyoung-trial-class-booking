@@ -22,6 +22,7 @@ from schemas.admin import (
     AdminOverviewResponse,
     MentorAdminResponse,
     MentorCreateRequest,
+    MentorUpdateRequest,
     MentorScheduleItem,
     ParentAdminResponse,
     ParentBookingDetail,
@@ -135,6 +136,35 @@ def create_mentor(db: Session, mentor_in: MentorCreateRequest) -> Mentor:
         is_active=True,
     )
     db.add(mentor)
+    db.commit()
+    db.refresh(mentor)
+    return mentor
+
+def update_mentor(db: Session, mentor_id: int, mentor_in: MentorUpdateRequest) -> Mentor:
+    mentor = db.query(Mentor).filter(Mentor.id == mentor_id).first()
+    if not mentor:
+        raise ValueError("Mentor not found.")
+
+    if mentor_in.email is not None:
+        clean_email = mentor_in.email.strip().lower()
+        if clean_email != mentor.email.lower():
+            existing = db.query(Mentor).filter(func.lower(Mentor.email) == clean_email).first()
+            if existing:
+                raise ValueError("A mentor with this email already exists.")
+        mentor.email = clean_email
+    
+    if mentor_in.name is not None:
+        mentor.name = mentor_in.name.strip()
+    
+    if mentor_in.timezone is not None:
+        clean_tz = mentor_in.timezone.strip()
+        if not validate_timezone(clean_tz):
+            raise ValueError(f"Invalid IANA timezone: '{clean_tz}'.")
+        mentor.timezone = clean_tz
+        
+    if mentor_in.is_active is not None:
+        mentor.is_active = mentor_in.is_active
+
     db.commit()
     db.refresh(mentor)
     return mentor

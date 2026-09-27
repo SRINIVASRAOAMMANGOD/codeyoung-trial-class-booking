@@ -13,6 +13,7 @@ import {
   getParents,
   getParentBookings,
   getBookings,
+  updateMentor,
 } from '../api/adminApi';
 
 function AdminPage({ currentView, onViewChange }) {
@@ -29,6 +30,10 @@ function AdminPage({ currentView, onViewChange }) {
   const [showAddMentor, setShowAddMentor] = useState(false);
   const [newMentor, setNewMentor] = useState({ name: '', email: '', timezone: 'Asia/Kolkata' });
   const [addingMentor, setAddingMentor] = useState(false);
+
+  // Edit Mentor Modal State
+  const [editingMentor, setEditingMentor] = useState(null);
+  const [isUpdatingMentor, setIsUpdatingMentor] = useState(false);
 
   // Parent Bookings Modal State
   const [selectedParent, setSelectedParent] = useState(null);
@@ -137,6 +142,40 @@ function AdminPage({ currentView, onViewChange }) {
       });
     } finally {
       setAddingMentor(false);
+    }
+  };
+
+  // Handle Edit Mentor Form Submission
+  const handleEditMentorSubmit = async (e) => {
+    e.preventDefault();
+    if (!editingMentor.name.trim() || !editingMentor.email.trim()) {
+      setAlert({ type: 'warning', message: 'Please provide both mentor name and email.' });
+      return;
+    }
+    setIsUpdatingMentor(true);
+    try {
+      const payload = {
+        name: editingMentor.name,
+        email: editingMentor.email,
+        timezone: editingMentor.timezone,
+        is_active: editingMentor.is_active,
+      };
+      const updated = await updateMentor(editingMentor.id, payload);
+      setMentors((prev) => prev.map((m) => (m.id === updated.id ? updated : m)));
+      const ovData = await getOverview();
+      setOverview(ovData);
+      setEditingMentor(null);
+      setAlert({
+        type: 'info',
+        message: `Mentor '${updated.name}' updated successfully.`,
+      });
+    } catch (err) {
+      setAlert({
+        type: 'error',
+        message: err.message || 'Failed to update mentor.',
+      });
+    } finally {
+      setIsUpdatingMentor(false);
     }
   };
 
@@ -304,6 +343,13 @@ function AdminPage({ currentView, onViewChange }) {
                                 onClick={() => handleToggleMentor(m)}
                               >
                                 {m.is_active ? 'Deactivate' : 'Reactivate'}
+                              </button>
+                              <button
+                                type="button"
+                                className="btn-action"
+                                onClick={() => setEditingMentor(m)}
+                              >
+                                Edit
                               </button>
                               <button
                                 type="button"
@@ -520,6 +566,91 @@ function AdminPage({ currentView, onViewChange }) {
                     disabled={addingMentor}
                   >
                     {addingMentor ? 'Saving...' : 'Add Mentor'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* MODAL: EDIT MENTOR */}
+        {editingMentor && (
+          <div className="modal-backdrop">
+            <div className="modal-dialog">
+              <div className="modal-header">
+                <h3>Edit Mentor: {editingMentor.name}</h3>
+                <button
+                  type="button"
+                  className="close-btn"
+                  onClick={() => setEditingMentor(null)}
+                >
+                  ✕
+                </button>
+              </div>
+              <form onSubmit={handleEditMentorSubmit}>
+                <div className="modal-body">
+                  <div className="form-group">
+                    <label htmlFor="edit-mentor-name">Mentor Full Name</label>
+                    <input
+                      id="edit-mentor-name"
+                      type="text"
+                      className="form-input"
+                      value={editingMentor.name}
+                      onChange={(e) => setEditingMentor({ ...editingMentor, name: e.target.value })}
+                      required
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label htmlFor="edit-mentor-email">Email Address</label>
+                    <input
+                      id="edit-mentor-email"
+                      type="email"
+                      className="form-input"
+                      value={editingMentor.email}
+                      onChange={(e) => setEditingMentor({ ...editingMentor, email: e.target.value })}
+                      required
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label htmlFor="edit-mentor-tz">Timezone (IANA)</label>
+                    <input
+                      id="edit-mentor-tz"
+                      type="text"
+                      className="form-input"
+                      value={editingMentor.timezone}
+                      onChange={(e) => setEditingMentor({ ...editingMentor, timezone: e.target.value })}
+                      required
+                    />
+                  </div>
+                  
+                  <div className="form-group" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '1rem' }}>
+                    <input
+                      id="edit-mentor-active"
+                      type="checkbox"
+                      checked={editingMentor.is_active}
+                      onChange={(e) => setEditingMentor({ ...editingMentor, is_active: e.target.checked })}
+                      style={{ width: 'auto' }}
+                    />
+                    <label htmlFor="edit-mentor-active" style={{ marginBottom: 0 }}>Active for assignments</label>
+                  </div>
+                </div>
+
+                <div className="modal-footer">
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={() => setEditingMentor(null)}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="btn btn-primary"
+                    disabled={isUpdatingMentor}
+                  >
+                    {isUpdatingMentor ? 'Saving...' : 'Save Changes'}
                   </button>
                 </div>
               </form>

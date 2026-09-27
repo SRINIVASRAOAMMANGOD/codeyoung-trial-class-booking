@@ -45,6 +45,23 @@ class MentorCreateRequest(BaseModel):
         return clean
 
 
+class MentorUpdateRequest(BaseModel):
+    name: str | None = Field(None, min_length=2, max_length=100)
+    email: str | None = Field(None, min_length=5, max_length=150)
+    timezone: str | None = None
+    is_active: bool | None = None
+
+    @field_validator("email")
+    @classmethod
+    def validate_email_format(cls, v: str | None) -> str | None:
+        if v is None:
+            return v
+        clean = v.strip().lower()
+        if not re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", clean):
+            raise ValueError(f"Invalid email format: '{v}'")
+        return clean
+
+
 class MentorStatusUpdateRequest(BaseModel):
     is_active: bool
 

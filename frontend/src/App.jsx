@@ -51,7 +51,7 @@ function App() {
           url.searchParams.set('view', newView);
         }
         
-        if (options.courseId) {
+        if (options.courseId && typeof options.courseId !== 'object') {
           url.searchParams.set('course', options.courseId);
         }
       }
@@ -107,7 +107,7 @@ function App() {
   }
 
   // Default: landing page
-  return <LandingPage onBookTrial={(courseId) => handleViewChange('booking', { courseId })} />;
+  return <LandingPage onBookTrial={(courseId) => handleViewChange('booking', { courseId })} onViewChange={handleViewChange} />;
 }
 
 export default App;

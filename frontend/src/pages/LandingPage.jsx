@@ -11,7 +11,7 @@ import FAQ from '../components/FAQ';
 import CTASection from '../components/CTASection';
 import LandingFooter from '../components/LandingFooter';
 
-function LandingPage({ onBookTrial }) {
+function LandingPage({ onBookTrial, onViewChange }) {
   const scrollToCourses = () => {
     const el = document.getElementById('courses');
     if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -19,7 +19,7 @@ function LandingPage({ onBookTrial }) {
 
   return (
     <div className="landing-page">
-      <LandingHeader onBookTrial={onBookTrial} />
+      <LandingHeader onBookTrial={onBookTrial} onViewChange={onViewChange} />
 
       <main id="main-content">
         <HeroSection onBookTrial={onBookTrial} onExploreCourses={scrollToCourses} />
