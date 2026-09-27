@@ -65,9 +65,7 @@ function MentorPage({ currentView, onViewChange }) {
       <main className="booking-container mentor-view-container">
         {/* Notice Banner */}
         <div className="internal-notice-badge">
-          <span>
-            <strong>Internal Demo Mentor View</strong> — Demonstration view for mentor schedule and class link visibility without production login.
-          </span>
+          Notice: This is a demo internal portal. Authentication and Role-Based Access Control (RBAC) are not implemented.
         </div>
 
         {alert && (

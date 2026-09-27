@@ -266,9 +266,7 @@ function AdminPage({ currentView, onViewChange }) {
       <main className="booking-container admin-container">
         {/* Notice Banner */}
         <div className="internal-notice-badge">
-          <span>
-            <strong>Internal Operational Demo Admin Dashboard</strong> — Demonstration mode for assessment evaluation. No authentication required.
-          </span>
+          Notice: This is a demo internal portal. Authentication and Role-Based Access Control (RBAC) are not implemented.
         </div>
 
         {alert && (
