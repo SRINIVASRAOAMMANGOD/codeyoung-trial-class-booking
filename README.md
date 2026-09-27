@@ -133,12 +133,12 @@ flowchart LR
 
         subgraph BE[FASTAPI BACKEND - MODULAR MONOLITH]
                 subgraph API[API / ROUTER LAYER]
-                        ROUTES[Health | Courses | Slots<br/>Bookings | Admin | Mentor<br/>Email Resend]
+                        ROUTES[Health<br/>Courses<br/>Slots<br/>Bookings<br/>Admin<br/>Mentor<br/>Email Resend]
                 end
 
                 subgraph SERVICES[SERVICE LAYER]
                         BOOK[Booking Service<br/>Mentor allocation<br/>Slot availability<br/>Daily capacity<br/>Booking validation]
-                        TIME[Slot / Timezone Service<br/>IST anchors | UTC conversion<br/>IANA conversion | DST handling]
+                        TIME[Slot / Timezone Service<br/>IST anchors<br/>UTC conversion<br/>IANA conversion<br/>DST handling]
                         COURSE[Course Service<br/>Active-course listing<br/>Course validation]
                         PARENT[Parent Service<br/>Parent lookup and creation]
                         ADMIN[Admin Service<br/>Mentor management<br/>Parent / booking visibility]
@@ -162,7 +162,7 @@ flowchart LR
         end
 
         subgraph DB[POSTGRESQL]
-                TABLES[Parents | Mentors | Courses | Bookings<br/>Constraints | Relationships]
+                TABLES[Parents<br/>Mentors<br/>Courses<br/>Bookings<br/>Constraints<br/>Relationships]
         end
 
         subgraph OUT[EMAIL DELIVERY]
