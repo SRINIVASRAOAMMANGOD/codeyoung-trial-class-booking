@@ -102,6 +102,9 @@ Please save this link. You and {booking.child_name} can join the classroom direc
 
 Happy Learning,
 The Codeyoung Team
+
+ADMIN
+Srinivas
 """
 
     return {
@@ -155,6 +158,9 @@ CLASSROOM MEETING LINK:
 Please ensure you join 5 minutes before the session starts to welcome the student.
 
 Codeyoung Mentor Operations
+
+ADMIN
+Srinivas
 """
 
     return {
