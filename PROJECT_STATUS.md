@@ -1,8 +1,8 @@
 # PROJECT_STATUS.md — Codeyoung Trial Class Booking System
 
 ## Current Phase
-**Phase 9 — Documentation & Project Finalization** ✅ Complete  
-*(All 9 project phases completed, fully tested, documented, and verified for submission.)*
+**Phase 10 — Admin Management, Parent Relationships & Operational Visibility** 🟡 In Progress  
+*(Steps 1, 2, and 3 Complete: Parent Model Normalized, Dual-Mode Email Service, Admin & Mentor Operational Visibility)*
 
 ---
 
@@ -19,6 +19,7 @@
 | **Phase 7** | Integration & Edge-Case Testing | ✅ DONE |
 | **Phase 8** | Architecture & Code Quality Audit | ✅ DONE |
 | **Phase 9** | Documentation & Project Finalization | ✅ DONE |
+| **Phase 10** | Admin Management & Parent Entity | 🟡 IN PROGRESS (Steps 1, 2, & 3 Done) |
 
 ---
 
@@ -93,6 +94,43 @@ The application is a fully functional, production-ready recruitment assessment s
 - Verification of class link lifecycle: stored in database, returned on booking response/confirmation, and accessible to mentors via `GET /api/v1/mentor/bookings`.
 - Codebase verified free of dead code, test artifacts, or temporary scripts.
 
+### Phase 9 — Documentation & Project Finalization
+- Project documentation finalized in `PROJECT_STATUS.md` and `README.md`.
+- Full 18-section recruiter-friendly documentation covering architecture, setup, testing, and explicit out-of-scope items.
+
+### Phase 10 — Step 1: Database Model & Parent Relationship (DONE)
+- `backend/models/parent.py`: `Parent` model with `id`, `name`, `email UNIQUE`, and `bookings` relationship.
+- `backend/models/booking.py`: Normalized with `parent_id` foreign key (`ON DELETE RESTRICT`) and `@property` getters for backward-compatible serialization.
+- `backend/db/migrate_phase10.py`: Lossless forward migration preserving existing bookings.
+- `backend/services/parent_service.py`: `get_or_create_parent()` with concurrent savepoint collision handling.
+
+### Phase 10 — Step 2: Email Notification Service (DONE)
+- `backend/services/email_service.py`: Dual-mode notification system (`console` for dev simulation, `smtp` for real delivery).
+- Parent notification formatted in parent local timezone with active DST offset.
+- Mentor notification formatted in India Standard Time (`Asia/Kolkata`).
+- Commit-before-email guarantee: Booking transaction commits to database before notifications are sent; notification errors are caught and logged without rolling back confirmed bookings.
+- 38/38 unit tests passing across timezone math, parent models, and email dispatching.
+
+### Phase 10 — Step 3: Admin & Mentor Management (DONE)
+- **Admin Backend Architecture:** Clean Layered Service Pattern (`Router` → `AdminService` → `SQLAlchemy Models` → PostgreSQL).
+- **Dynamic Capacity Tracking:** Daily capacity is computed dynamically as $\text{Active Mentors} \times 2$ (e.g. 10 active = 20 classes/day; 8 active = 16 classes/day). No hardcoded 20 bookings/day ceiling.
+- **Mentor Lifecycle Management:**
+  - View all mentors with their current IST day class count and availability.
+  - Add mentor with IANA timezone validation, email regex validation, and duplicate email prevention.
+  - Activate and deactivate mentors. Inactive mentors cannot receive new bookings while all historical bookings remain untouched.
+  - Safe delete rule: Hard deletion allowed ONLY if mentor has zero bookings. If $\ge 1$ booking exists, deletion is rejected with 400 Bad Request instructing deactivation.
+- **Parent & Booking Operational Visibility:**
+  - Parent directory with booking counts, first booking date, and modal drill-down into parent booking history.
+  - Booking list showing parent local time and mentor IST time derived on-the-fly from canonical `slot_utc` without redundant database columns.
+- **Internal Demo Mentor View:** Mentor selector allowing instructors to view their assigned trial classes formatted in IST with classroom links.
+- **Frontend Integration:**
+  - Single-page application with top navbar view switcher (`📅 Parent Booking`, `🛡️ Admin Dashboard`, `👩‍🏫 Mentor View`).
+  - Clear "Internal Demo / Operational Management" banners noting that production authorization (JWT/RBAC) is required for production.
+- **Quality & Verification:**
+  - 47/47 pytest backend tests passing in ~3.7s.
+  - Frontend `oxlint` passing with 0 warnings and 0 errors across 15 files.
+  - Frontend `vite build` passing with 0 errors in under 1s.
+
 ---
 
 ## Current Architecture
@@ -105,41 +143,54 @@ codeyoung-trial-class-booking/
 │   ├── database.py              SQLAlchemy engine, SessionLocal, get_db() dependency
 │   ├── models/
 │   │   ├── mentor.py            Mentor ORM model (id, name, email, timezone, is_active)
-│   │   └── booking.py           Booking ORM model (TIMESTAMPTZ slot_utc, FK mentor_id)
+│   │   ├── parent.py            Parent ORM model (id, name, email UNIQUE)
+│   │   └── booking.py           Booking ORM model (TIMESTAMPTZ slot_utc, FK mentor_id, FK parent_id)
 │   ├── schemas/
 │   │   ├── slots.py             SlotItem (utc_iso, local_display), SlotsResponse
-│   │   └── booking.py           BookingCreate, BookingResponse
+│   │   ├── booking.py           BookingCreate, BookingResponse
+│   │   └── admin.py             AdminOverviewResponse, MentorAdminResponse, MentorCreateRequest, ParentAdminResponse, AdminBookingResponse
 │   ├── routers/
 │   │   ├── slots.py             GET /api/v1/slots
-│   │   └── bookings.py          POST /api/v1/bookings, GET /bookings/{id}, GET /mentor/bookings
+│   │   ├── bookings.py          POST /api/v1/bookings, GET /bookings/{id}, GET /mentor/bookings
+│   │   └── admin.py             Admin overview, mentor management, parent & booking visibility
 │   ├── services/
 │   │   ├── timezone_service.py  IST anchors, UTC conversions, IANA validation, DST offsets
 │   │   ├── slot_service.py      Slot generation & mentor eligibility filtering
-│   │   └── booking_service.py   SERIALIZABLE transactions, mentor allocation, retry logic
+│   │   ├── booking_service.py   SERIALIZABLE transactions, mentor allocation, retry logic
+│   │   ├── parent_service.py    Parent lookup and atomic creation
+│   │   ├── email_service.py     Dual-mode notification service (console & SMTP)
+│   │   └── admin_service.py     Dynamic capacity, mentor lifecycle, parent/booking reporting
 │   ├── db/
 │   │   ├── init_db.py           Idempotent table creation (Base.metadata.create_all)
-│   │   └── seed.py              Idempotent seed script for 10 Indian mentors
+│   │   ├── seed.py              Idempotent seed script for 10 Indian mentors
+│   │   └── migrate_phase10.py   Lossless migration for parents table and FK
 │   ├── tests/
-│   │   └── test_timezone.py     23 pytest unit tests for timezone conversions & DST
+│   │   ├── test_timezone.py     23 pytest unit tests for timezone conversions & DST
+│   │   ├── test_phase10_step1.py 7 pytest tests for parent entity & booking FK
+│   │   ├── test_email_service.py 8 pytest tests for email service formatting & modes
+│   │   └── test_admin.py        9 pytest tests for admin metrics, mentor lifecycle, delete rules
 │   ├── requirements.txt         Pinned backend dependencies
 │   └── pytest.ini               Pytest configuration with strict asyncio mode
 │
 └── frontend/
     ├── src/
     │   ├── main.jsx             React entry point
-    │   ├── App.jsx              Root application component
-    │   ├── index.css            Vanilla CSS design system (tokens, responsive grid)
+    │   ├── App.jsx              Root view coordinator (Booking, Admin, Mentor)
+    │   ├── index.css            Vanilla CSS design system (tokens, responsive grid, admin UI)
     │   ├── api/
-    │   │   └── bookingApi.js    Centralized API client for slots and bookings
+    │   │   ├── bookingApi.js    Centralized API client for slots and bookings
+    │   │   └── adminApi.js      Centralized API client for admin & mentor views
     │   ├── components/
-    │   │   ├── Header.jsx              Top navbar and branding
+    │   │   ├── Header.jsx              Top navbar, branding & view switcher
     │   │   ├── ParentDetailsForm.jsx   Parent and child input fields
     │   │   ├── TimezoneDatePicker.jsx  Timezone select & 7-day date selector
     │   │   ├── SlotPicker.jsx          Slot list & state handling
     │   │   ├── BookingConfirmation.jsx Success screen with meeting link
     │   │   └── AlertBanner.jsx         Dismissible feedback alerts
     │   ├── pages/
-    │   │   └── BookingPage.jsx  Main state coordinator for 2-step booking flow
+    │   │   ├── BookingPage.jsx  Main state coordinator for 2-step booking flow
+    │   │   ├── AdminPage.jsx    Operational admin dashboard (metrics, mentors, parents, bookings)
+    │   │   └── MentorPage.jsx   Internal demo mentor portal for assigned classes
     │   └── utils/
     │       └── dateUtils.js     Date calculations and display formatting
     ├── package.json             Vite + React 19 dependencies & scripts
@@ -159,8 +210,16 @@ CREATE TABLE mentors (
     is_active BOOLEAN NOT NULL DEFAULT TRUE
 );
 
+CREATE TABLE parents (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    email VARCHAR(150) NOT NULL UNIQUE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
 CREATE TABLE bookings (
     id SERIAL PRIMARY KEY,
+    parent_id INTEGER REFERENCES parents(id) ON DELETE RESTRICT,
     parent_name VARCHAR(100) NOT NULL,
     parent_email VARCHAR(150) NOT NULL,
     child_name VARCHAR(100) NOT NULL,
@@ -182,76 +241,48 @@ CREATE TABLE bookings (
 |---|---|---|---|---|
 | `GET` | `/api/v1/health` | Health Check | Verifies service availability | 200 |
 | `GET` | `/api/v1/slots` | Available Slots | Lists available slots for a date & parent timezone | 200, 422 |
-| `POST` | `/api/v1/bookings` | Create Booking | Validates slot, assigns mentor, confirms booking | 201, 409, 422, 503 |
+| `POST` | `/api/v1/bookings` | Create Booking | Validates slot, assigns mentor, creates parent, sends emails | 201, 409, 422, 503 |
 | `GET` | `/api/v1/bookings/{id}` | Get Booking | Retrieves confirmed booking record by ID | 200, 404 |
 | `GET` | `/api/v1/mentor/bookings` | Mentor Bookings | Retrieves mentor schedule (filter by `mentor_id`) | 200 |
+| `GET` | `/api/v1/admin/overview` | Admin Overview | Returns metrics, active mentors, parents, bookings, capacity | 200 |
+| `GET` | `/api/v1/admin/mentors` | Admin Mentors | Lists all mentors with today's class count and active status | 200 |
+| `POST` | `/api/v1/admin/mentors` | Create Mentor | Adds mentor with email, name, and IANA timezone validation | 201, 400, 409 |
+| `PATCH` | `/api/v1/admin/mentors/{id}/status` | Update Mentor Status | Activates or deactivates mentor | 200, 404 |
+| `DELETE` | `/api/v1/admin/mentors/{id}` | Delete Mentor | Safe delete: allowed only if 0 bookings exist | 200, 400, 404 |
+| `GET` | `/api/v1/admin/parents` | Admin Parents | Lists registered parents with booking counts and first date | 200 |
+| `GET` | `/api/v1/admin/parents/{id}/bookings` | Parent Bookings | Retrieves all bookings for a specific parent | 200, 404 |
+| `GET` | `/api/v1/admin/bookings` | Admin Bookings | Lists bookings with parent local and mentor IST times | 200 |
 
 ---
 
-## Timezone & DST Handling
+## Dynamic Mentor Capacity & Safe Delete Rules
 
-1. **Canonical Anchors:** All available classes are anchored in India Standard Time (`Asia/Kolkata`) from **15:00 to 21:00 IST** (7 one-hour slots daily).
-2. **UTC-First Conversion:** Each IST slot is converted to an exact UTC `datetime` instant (e.g., 15:00 IST $\rightarrow$ 09:30 UTC).
-3. **Local Display:** The backend converts the UTC instant to the parent's requested IANA timezone using standard Python `zoneinfo` and `tzdata==2025.2`, computing local time with the correct daylight saving time (DST) offset (e.g., EDT vs EST, BST vs GMT).
-4. **Zero Frontend Drift:** The frontend receives both `utc_iso` and `local_display`. When booking, the frontend returns `utc_iso` verbatim to the backend, completely eliminating browser clock skews.
-
----
-
-## Mentor Allocation Logic
-
-When a parent books a slot:
-1. **Active Filter:** Mentor must have `is_active = TRUE`.
-2. **Slot Availability:** Mentor must not already be booked at `slot_utc` with `status = 'confirmed'`.
-3. **Daily Cap:** Mentor must have fewer than **2 confirmed bookings** on that **IST calendar date** (`DATE(slot_utc AT TIME ZONE 'Asia/Kolkata') == ist_date`).
-4. **Assignment Strategy:** If multiple mentors qualify, assignment picks the lowest mentor ID deterministically (`ORDER BY Mentor.id ASC`).
-5. **Capacity Exhaustion:** If all 10 mentors are booked at that slot or have hit their 2-class daily cap, the API returns `409 Conflict`.
+1. **Dynamic Capacity Calculation:**
+   - Theoretical Daily Capacity = $\text{Active Mentors} \times 2$.
+   - Remaining Today Capacity = $\max(0, \text{Theoretical Daily Capacity} - \text{Today's Confirmed Classes})$.
+   - Never hardcoded to 20 bookings/day; updates dynamically when mentors are added, deactivated, or reactivated.
+2. **Delete vs Deactivate Rule:**
+   - **Zero Bookings:** Hard `DELETE` from database is permitted.
+   - **$\ge 1$ Bookings:** Hard `DELETE` is blocked with HTTP 400 (`"Cannot delete mentor because X historical booking(s) exist. Deactivate the mentor instead."`).
+   - **Deactivation (`is_active = FALSE`):** Immediately excludes the mentor from receiving new booking slots, but preserves all historical booking records, parent relationships, and class schedules.
 
 ---
 
-## Concurrency Protection
+## Testing & Code Quality Status
 
-- **Database-Level Protection:** A composite unique constraint `uq_mentor_slot_utc` (`UNIQUE (mentor_id, slot_utc)`) guarantees at the storage engine level that two transactions can never assign the same mentor to the same UTC slot.
-- **Transaction Isolation:** Booking creation executes inside PostgreSQL `SERIALIZABLE` isolation level, which monitors read/write dependencies and aborts concurrent overlapping transactions via Serializable Snapshot Isolation (SSI).
-- **Automatic Retry:** The backend catches serialization failures (`40001`) and unique constraint collisions (`23505`) and retries once automatically. If contention persists, it returns `503 Service Unavailable` with a prompt to retry.
-
----
-
-## Testing Status
-
-- **Unit Tests:** 23 passing pytest tests in `backend/tests/test_timezone.py` (0.10s execution time).
+- **Pytest Suite:** 47 passing unit and integration tests across 4 test modules:
+  - `test_timezone.py` (23 tests): Slot generation, DST conversions (US EDT/EST, UK BST/GMT).
+  - `test_phase10_step1.py` (7 tests): Parent normalization, foreign key preservation, duplicate parent reuse.
+  - `test_email_service.py` (8 tests): Dual-mode console/SMTP dispatching, template formatting, non-blocking guarantee.
+  - `test_admin.py` (9 tests): Metrics calculation, mentor creation & validation, deactivation, safe delete rule, parent drill-downs, dual timezone presentation.
 - **Frontend Quality:**
-  - `oxlint`: 0 warnings, 0 errors across 12 files.
-  - `vite build`: Production build passes in ~530ms with zero errors.
-- **End-to-End Verification:** Passed across normal booking, 2-class daily limit, distinct mentor allocation, slot conflict handling (409), invalid inputs (422), and cross-timezone DST transitions.
+  - `oxlint`: 0 warnings, 0 errors across 15 files.
+  - `vite build`: Production build passes in ~950ms with 0 errors.
 
 ---
 
-## Important Assumptions & Design Decisions
+## Security & Operational Scope Limitations
 
-1. **Class Duration (Product Assumption):** Classes are assumed to be 1 hour in duration (15:00–16:00, 16:00–17:00, ..., 21:00–22:00 IST).
-2. **Booking Window (Product Assumption):** Parents can book slots starting from tomorrow through tomorrow + 6 days (7 calendar days). Same-day bookings are excluded to avoid booking past hours or mentor short-notice issues.
-3. **Mentor "Day" Boundary (Engineering Inference):** Because mentors reside in India, the daily 2-class limit is measured by the mentor's local calendar date in `Asia/Kolkata`.
-4. **Class Meeting Link (Specification Requirement):**
-   > *The system generates and stores a dummy class link for each confirmed booking. The link is available to the parent through the booking confirmation flow and to the mentor through the mentor booking endpoint. Actual email/notification delivery is intentionally outside the scope of this assignment.*
-5. **Database Initialization:** Database tables are initialized using `SQLAlchemy Base.metadata.create_all()` via `backend/db/init_db.py`. Alembic is deliberately omitted for this standalone assessment.
-6. **Parent-Facing Mentor Display:** The parent confirmation screen displays "Dedicated Codeyoung Mentor" rather than internal mentor IDs or emails, while preserving the internal `mentor_id` in API payloads.
-
----
-
-## Deliberately Unbuilt Features
-
-As specified by project constraints:
-- ❌ No user authentication or login sessions (JWT, OAuth, passwords).
-- ❌ No transactional email delivery (SendGrid, SES, SMTP).
-- ❌ No calendar integrations (Google Calendar, Outlook iCal).
-- ❌ No live video conferencing infrastructure (WebRTC, Zoom API).
-- ❌ No payment gateway or checkout processing.
-- ❌ No internal administrative CRM or mentor management dashboard.
-
----
-
-## Next Steps / Project Status
-
-1. **Project Finalized:** All core requirements, edge cases, integration flows, and documentation are complete.
-2. **Repository Ready:** Working tree clean, all 23 unit tests pass, frontend linter and production build pass with 0 errors.
-3. **Assessment Ready for Review.**
+- ⚠️ **Internal Demo Scope:** The Admin Dashboard and Mentor Portal are designed as internal demonstration and operational management interfaces for recruitment evaluation.
+- ⚠️ **No Authentication:** In accordance with explicit Phase 10 Step 3 instructions, user authentication (JWT/OAuth) and role-based access control (RBAC) are deliberately omitted.
+- ⚠️ **Production Readiness:** Before exposing admin and mentor management endpoints to public networks, production authentication (e.g. Auth0, OAuth2 password grant, session cookies), CSRF tokens, and rate-limiting middleware must be introduced.

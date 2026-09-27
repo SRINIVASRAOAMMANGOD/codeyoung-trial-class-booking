@@ -14,9 +14,19 @@ class Settings(BaseSettings):
     database_url: str
     app_env: str = "development"
 
+    # Email notification settings
+    email_backend: str = "console"  # "console" for dev simulation, "smtp" for real delivery
+    smtp_host: str = ""
+    smtp_port: int = 587
+    smtp_username: str = ""
+    smtp_password: str = ""
+    smtp_from: str = "no-reply@codeyoung.com"
+    smtp_use_tls: bool = True
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
+        extra="ignore",
     )
 
 

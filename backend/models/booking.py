@@ -6,6 +6,8 @@ and a mentor. It is created when a parent selects a slot and the system
 successfully assigns an available mentor.
 
 Key design decisions:
+- parent_id links to the Parent entity (Foreign Key -> parents.id ON DELETE RESTRICT).
+- mentor_id links to the Mentor entity (Foreign Key -> mentors.id ON DELETE RESTRICT).
 - slot_utc (TIMESTAMPTZ) is the canonical appointment time. All timezone
   conversions happen at the application layer; the DB stores only UTC.
 - class_link is a dummy URL generated at booking time and is the same
@@ -33,9 +35,14 @@ class Booking(Base):
 
     id = Column(Integer, primary_key=True, index=True)
 
-    # Parent information
-    parent_name = Column(String(100), nullable=False)
-    parent_email = Column(String(150), nullable=False)
+    # Associated parent (normalized)
+    parent_id = Column(
+        Integer,
+        ForeignKey("parents.id", ondelete="RESTRICT"),
+        nullable=False,
+        index=True,
+    )
+
     child_name = Column(String(100), nullable=False)
 
     # IANA timezone string for the parent (e.g. "America/New_York").
@@ -48,7 +55,12 @@ class Booking(Base):
     slot_utc = Column(DateTime(timezone=True), nullable=False)
 
     # Assigned mentor
-    mentor_id = Column(Integer, ForeignKey("mentors.id"), nullable=False)
+    mentor_id = Column(
+        Integer,
+        ForeignKey("mentors.id", ondelete="RESTRICT"),
+        nullable=False,
+        index=True,
+    )
 
     # Dummy class link shown to both parent and mentor.
     # Format: https://class.codeyoung.com/room/<uuid4>
@@ -65,19 +77,26 @@ class Booking(Base):
         server_default=func.now(),
     )
 
-    # ORM relationship: access booking.mentor to get the Mentor object.
+    # ORM relationships
+    parent = relationship("Parent", back_populates="bookings")
     mentor = relationship("Mentor", back_populates="bookings")
 
+    # Backward-compatibility accessors for Pydantic serialization
+    @property
+    def parent_name(self) -> str:
+        return self.parent.name if self.parent else ""
+
+    @property
+    def parent_email(self) -> str:
+        return self.parent.email if self.parent else ""
+
     __table_args__ = (
-        # PRIMARY constraint: one mentor cannot be assigned to the same
-        # UTC slot twice. This is the database-level double-booking guard.
-        # The application layer (SERIALIZABLE transactions) handles the
-        # daily cap; this constraint is the final hard guarantee.
+        # Double-booking guard
         UniqueConstraint("mentor_id", "slot_utc", name="uq_mentor_slot_utc"),
     )
 
     def __repr__(self) -> str:
         return (
-            f"<Booking id={self.id} mentor_id={self.mentor_id} "
+            f"<Booking id={self.id} parent_id={self.parent_id} mentor_id={self.mentor_id} "
             f"slot_utc={self.slot_utc!r} status={self.status!r}>"
         )

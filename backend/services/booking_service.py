@@ -13,20 +13,24 @@ Key architectural guarantees:
   6. Genuine lack of available mentors raises BookingConflictError (409).
 """
 
+import logging
 import uuid
 from datetime import date, datetime
 from zoneinfo import ZoneInfo
 
 from sqlalchemy import func
 from sqlalchemy.exc import DBAPIError, IntegrityError, OperationalError
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from models.booking import Booking
 from models.mentor import Mentor
 from schemas.booking import BookingCreate
+from services.email_service import send_booking_notifications
+from services.parent_service import get_or_create_parent
 from services.timezone_service import validate_timezone
 
 _IST = ZoneInfo("Asia/Kolkata")
+logger = logging.getLogger(__name__)
 
 
 # --- Custom Domain Exceptions ---
@@ -181,9 +185,14 @@ def create_booking(db: Session, booking_in: BookingCreate) -> Booking:
                     "No mentors are available for the requested slot."
                 )
 
+            parent = get_or_create_parent(
+                db=db,
+                name=booking_in.parent_name,
+                email=booking_in.parent_email,
+            )
+
             booking = Booking(
-                parent_name=booking_in.parent_name.strip(),
-                parent_email=booking_in.parent_email.strip(),
+                parent_id=parent.id,
                 child_name=booking_in.child_name.strip(),
                 parent_timezone=booking_in.parent_timezone.strip(),
                 slot_utc=booking_in.slot_utc,
@@ -191,9 +200,23 @@ def create_booking(db: Session, booking_in: BookingCreate) -> Booking:
                 class_link=generate_class_link(),
                 status="confirmed",
             )
+            booking.parent = parent
+            booking.mentor = mentor
             db.add(booking)
             db.commit()
             db.refresh(booking)
+
+            # Dispatch email notifications post-commit (never rolls back confirmed booking on delivery error)
+            try:
+                send_booking_notifications(booking)
+            except Exception as notify_err:
+                logger.error(
+                    "Email notification failed for confirmed booking #%s: %s",
+                    getattr(booking, "id", None),
+                    notify_err,
+                    exc_info=True,
+                )
+
             return booking
 
         except BookingConflictError:
@@ -217,7 +240,12 @@ def create_booking(db: Session, booking_in: BookingCreate) -> Booking:
 
 def get_booking_by_id(db: Session, booking_id: int) -> Booking | None:
     """Retrieve a booking by its primary key ID."""
-    return db.query(Booking).filter(Booking.id == booking_id).first()
+    return (
+        db.query(Booking)
+        .options(joinedload(Booking.parent))
+        .filter(Booking.id == booking_id)
+        .first()
+    )
 
 
 def get_mentor_bookings(
@@ -230,7 +258,11 @@ def get_mentor_bookings(
     If mentor_id is specified, filter to only that mentor's bookings.
     Ordered chronologically by slot_utc ascending.
     """
-    query = db.query(Booking).filter(Booking.status == status)
+    query = (
+        db.query(Booking)
+        .options(joinedload(Booking.parent))
+        .filter(Booking.status == status)
+    )
     if mentor_id is not None:
         query = query.filter(Booking.mentor_id == mentor_id)
     return query.order_by(Booking.slot_utc.asc()).all()

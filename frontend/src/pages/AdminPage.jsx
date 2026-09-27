@@ -1,0 +1,593 @@
+// AdminPage.jsx — Internal Operational Demo Admin Dashboard.
+
+import { useState, useEffect } from 'react';
+import Header from '../components/Header';
+import AlertBanner from '../components/AlertBanner';
+import {
+  getOverview,
+  getMentors,
+  createMentor,
+  setMentorStatus,
+  deleteMentor,
+  getParents,
+  getParentBookings,
+  getBookings,
+} from '../api/adminApi';
+
+function AdminPage({ currentView, onViewChange }) {
+  const [activeTab, setActiveTab] = useState('mentors'); // 'mentors' | 'parents' | 'bookings'
+  const [overview, setOverview] = useState(null);
+  const [mentors, setMentors] = useState([]);
+  const [parents, setParents] = useState([]);
+  const [bookings, setBookings] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [alert, setAlert] = useState(null);
+
+  // Add Mentor Modal State
+  const [showAddMentor, setShowAddMentor] = useState(false);
+  const [newMentor, setNewMentor] = useState({ name: '', email: '', timezone: 'Asia/Kolkata' });
+  const [addingMentor, setAddingMentor] = useState(false);
+
+  // Parent Bookings Modal State
+  const [selectedParent, setSelectedParent] = useState(null);
+  const [parentBookings, setParentBookings] = useState([]);
+  const [loadingParentBookings, setLoadingParentBookings] = useState(false);
+
+
+
+  useEffect(() => {
+    let ignore = false;
+    async function loadInitial() {
+      try {
+        const [ovData, mData, pData, bData] = await Promise.all([
+          getOverview(),
+          getMentors(),
+          getParents(),
+          getBookings(),
+        ]);
+        if (!ignore) {
+          setOverview(ovData);
+          setMentors(mData);
+          setParents(pData);
+          setBookings(bData);
+        }
+      } catch (err) {
+        if (!ignore) {
+          setAlert({
+            type: 'error',
+            message: err.message || 'Failed to load admin dashboard data.',
+          });
+        }
+      } finally {
+        if (!ignore) {
+          setLoading(false);
+        }
+      }
+    }
+    loadInitial();
+    return () => {
+      ignore = true;
+    };
+  }, []);
+
+  // Handle Mentor Status Toggle
+  const handleToggleMentor = async (mentor) => {
+    try {
+      const updated = await setMentorStatus(mentor.id, !mentor.is_active);
+      setMentors((prev) => prev.map((m) => (m.id === updated.id ? updated : m)));
+      // Refresh overview capacity
+      const ovData = await getOverview();
+      setOverview(ovData);
+      setAlert({
+        type: 'info',
+        message: `Mentor '${mentor.name}' is now ${updated.is_active ? 'Active' : 'Inactive'}.`,
+      });
+    } catch (err) {
+      setAlert({ type: 'error', message: err.message || 'Failed to update mentor status.' });
+    }
+  };
+
+  // Handle Delete Mentor
+  const handleDeleteMentor = async (mentor) => {
+    if (!window.confirm(`Are you sure you want to delete mentor '${mentor.name}'?`)) {
+      return;
+    }
+    try {
+      await deleteMentor(mentor.id);
+      setMentors((prev) => prev.filter((m) => m.id !== mentor.id));
+      const ovData = await getOverview();
+      setOverview(ovData);
+      setAlert({
+        type: 'info',
+        message: `Mentor '${mentor.name}' was successfully deleted.`,
+      });
+    } catch (err) {
+      setAlert({
+        type: 'error',
+        message: err.message || 'Cannot delete mentor.',
+      });
+    }
+  };
+
+  // Handle Add Mentor Form Submission
+  const handleAddMentorSubmit = async (e) => {
+    e.preventDefault();
+    if (!newMentor.name.trim() || !newMentor.email.trim()) {
+      setAlert({ type: 'warning', message: 'Please provide both mentor name and email.' });
+      return;
+    }
+    setAddingMentor(true);
+    try {
+      const created = await createMentor(newMentor);
+      setMentors((prev) => [...prev, created]);
+      const ovData = await getOverview();
+      setOverview(ovData);
+      setShowAddMentor(false);
+      setNewMentor({ name: '', email: '', timezone: 'Asia/Kolkata' });
+      setAlert({
+        type: 'info',
+        message: `Mentor '${created.name}' added successfully.`,
+      });
+    } catch (err) {
+      setAlert({
+        type: 'error',
+        message: err.message || 'Failed to create mentor.',
+      });
+    } finally {
+      setAddingMentor(false);
+    }
+  };
+
+  // Handle View Parent Bookings
+  const handleViewParentBookings = async (parent) => {
+    setSelectedParent(parent);
+    setLoadingParentBookings(true);
+    try {
+      const pBookings = await getParentBookings(parent.id);
+      setParentBookings(pBookings);
+    } catch (err) {
+      setAlert({ type: 'error', message: err.message || 'Could not load bookings for parent.' });
+    } finally {
+      setLoadingParentBookings(false);
+    }
+  };
+
+  return (
+    <div className="booking-page-layout">
+      <Header currentView={currentView} onViewChange={onViewChange} />
+
+      <main className="booking-container admin-container">
+        {/* Notice Banner */}
+        <div className="internal-notice-badge">
+          <span className="notice-icon">🛡️</span>
+          <span>
+            <strong>Internal Operational Demo Admin Dashboard</strong> — Demonstration mode for assessment evaluation. No authentication required.
+          </span>
+        </div>
+
+        {alert && (
+          <AlertBanner
+            type={alert.type}
+            message={alert.message}
+            onDismiss={() => setAlert(null)}
+          />
+        )}
+
+        {/* Overview Metric Cards */}
+        {overview && (
+          <div className="admin-metrics-grid">
+            <div className="metric-card">
+              <span className="metric-label">Active Mentors</span>
+              <span className="metric-value">{overview.active_mentors} <small>/ {overview.total_mentors}</small></span>
+              <span className="metric-hint">Available for new allocations</span>
+            </div>
+
+            <div className="metric-card">
+              <span className="metric-label">Today's Load (IST)</span>
+              <span className="metric-value">{overview.today_classes}</span>
+              <span className="metric-hint">Confirmed classes today</span>
+            </div>
+
+            <div className="metric-card highlight-metric">
+              <span className="metric-label">Remaining Daily Capacity</span>
+              <span className="metric-value">{overview.remaining_capacity}</span>
+              <span className="metric-hint">Dynamic: ({overview.active_mentors} active × 2) - {overview.today_classes} today</span>
+            </div>
+
+            <div className="metric-card">
+              <span className="metric-label">Registered Parents</span>
+              <span className="metric-value">{overview.total_parents}</span>
+              <span className="metric-hint">Unique parent accounts</span>
+            </div>
+
+            <div className="metric-card">
+              <span className="metric-label">Total Bookings</span>
+              <span className="metric-value">{overview.total_bookings}</span>
+              <span className="metric-hint">All-time confirmed demo classes</span>
+            </div>
+          </div>
+        )}
+
+        {/* Tab Controls */}
+        <div className="admin-nav-tabs">
+          <button
+            type="button"
+            className={`admin-tab-btn ${activeTab === 'mentors' ? 'active' : ''}`}
+            onClick={() => setActiveTab('mentors')}
+          >
+            Mentors Management ({mentors.length})
+          </button>
+          <button
+            type="button"
+            className={`admin-tab-btn ${activeTab === 'parents' ? 'active' : ''}`}
+            onClick={() => setActiveTab('parents')}
+          >
+            Parents Directory ({parents.length})
+          </button>
+          <button
+            type="button"
+            className={`admin-tab-btn ${activeTab === 'bookings' ? 'active' : ''}`}
+            onClick={() => setActiveTab('bookings')}
+          >
+            Confirmed Bookings ({bookings.length})
+          </button>
+        </div>
+
+        {loading ? (
+          <div className="loading-state">
+            <div className="spinner" />
+            <p>Loading operational records...</p>
+          </div>
+        ) : (
+          <div className="admin-content-pane">
+            {/* TAB 1: MENTORS */}
+            {activeTab === 'mentors' && (
+              <div className="admin-section">
+                <div className="section-header-row">
+                  <div>
+                    <h3 className="section-heading">Mentor Roster & Capacity</h3>
+                    <p className="section-subheading">
+                      Dynamic capacity = Active Mentors × 2 demo classes/IST day. Inactive mentors cannot be assigned.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    className="btn btn-primary btn-sm"
+                    onClick={() => setShowAddMentor(true)}
+                  >
+                    + Add Mentor
+                  </button>
+                </div>
+
+                <div className="table-responsive">
+                  <table className="admin-table">
+                    <thead>
+                      <tr>
+                        <th>ID</th>
+                        <th>Name</th>
+                        <th>Email</th>
+                        <th>Timezone</th>
+                        <th>Status</th>
+                        <th>Today's Load</th>
+                        <th>Daily Capacity</th>
+                        <th>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {mentors.map((m) => (
+                        <tr key={m.id} className={!m.is_active ? 'row-inactive' : ''}>
+                          <td><strong>#{m.id}</strong></td>
+                          <td>{m.name}</td>
+                          <td><code>{m.email}</code></td>
+                          <td>{m.timezone}</td>
+                          <td>
+                            <span className={`status-pill ${m.is_active ? 'pill-active' : 'pill-inactive'}`}>
+                              {m.is_active ? 'Active' : 'Inactive'}
+                            </span>
+                          </td>
+                          <td>
+                            <span className={`load-badge ${m.is_full_today ? 'load-full' : ''}`}>
+                              {m.today_classes} class{m.today_classes === 1 ? '' : 'es'}
+                            </span>
+                          </td>
+                          <td>
+                            <span className={`capacity-indicator ${m.is_full_today ? 'cap-full' : 'cap-avail'}`}>
+                              {m.capacity_label} {m.is_full_today ? '(Full)' : '(Available)'}
+                            </span>
+                          </td>
+                          <td>
+                            <div className="table-action-btns">
+                              <button
+                                type="button"
+                                className={`btn-action ${m.is_active ? 'btn-deactivate' : 'btn-activate'}`}
+                                onClick={() => handleToggleMentor(m)}
+                              >
+                                {m.is_active ? 'Deactivate' : 'Reactivate'}
+                              </button>
+                              <button
+                                type="button"
+                                className="btn-action btn-delete"
+                                onClick={() => handleDeleteMentor(m)}
+                                title="Allowed only if 0 bookings exist"
+                              >
+                                Delete
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {/* TAB 2: PARENTS */}
+            {activeTab === 'parents' && (
+              <div className="admin-section">
+                <div className="section-header-row">
+                  <div>
+                    <h3 className="section-heading">Parent Directory</h3>
+                    <p className="section-subheading">
+                      Normalized parent records. Click "View Bookings" to inspect family history.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="table-responsive">
+                  <table className="admin-table">
+                    <thead>
+                      <tr>
+                        <th>ID</th>
+                        <th>Parent Name</th>
+                        <th>Email</th>
+                        <th>Registered Date</th>
+                        <th>Total Bookings</th>
+                        <th>Action</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {parents.map((p) => (
+                        <tr key={p.id}>
+                          <td><strong>#{p.id}</strong></td>
+                          <td>{p.name}</td>
+                          <td><code>{p.email}</code></td>
+                          <td>{new Date(p.created_at).toLocaleDateString()}</td>
+                          <td>
+                            <span className="count-badge">{p.bookings_count}</span>
+                          </td>
+                          <td>
+                            <button
+                              type="button"
+                              className="btn btn-secondary btn-xs"
+                              onClick={() => handleViewParentBookings(p)}
+                            >
+                              View Bookings ({p.bookings_count})
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {/* TAB 3: BOOKINGS */}
+            {activeTab === 'bookings' && (
+              <div className="admin-section">
+                <div className="section-header-row">
+                  <div>
+                    <h3 className="section-heading">All Confirmed Bookings</h3>
+                    <p className="section-subheading">
+                      Dual timezone presentation: Local parent time & Indian mentor time.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="table-responsive">
+                  <table className="admin-table">
+                    <thead>
+                      <tr>
+                        <th>Ref</th>
+                        <th>Student</th>
+                        <th>Parent</th>
+                        <th>Assigned Mentor</th>
+                        <th>Parent Local Time</th>
+                        <th>Mentor Time (IST)</th>
+                        <th>Status</th>
+                        <th>Meeting Link</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {bookings.length === 0 ? (
+                        <tr>
+                          <td colSpan="8" className="empty-table-cell">No bookings found.</td>
+                        </tr>
+                      ) : (
+                        bookings.map((b) => (
+                          <tr key={b.id}>
+                            <td><strong>#{b.id}</strong></td>
+                            <td><strong>{b.child_name}</strong></td>
+                            <td>
+                              <div>{b.parent_name}</div>
+                              <small className="sub-text">{b.parent_email}</small>
+                            </td>
+                            <td>{b.mentor_name}</td>
+                            <td><span className="time-badge">{b.parent_local_time}</span></td>
+                            <td><span className="ist-badge">{b.mentor_ist_time}</span></td>
+                            <td>
+                              <span className="status-badge">{b.status}</span>
+                            </td>
+                            <td>
+                              <a
+                                href={b.class_link}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="class-link-btn"
+                              >
+                                Join Room ↗
+                              </a>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* MODAL: ADD MENTOR */}
+        {showAddMentor && (
+          <div className="modal-backdrop">
+            <div className="modal-dialog">
+              <div className="modal-header">
+                <h3>Add New Codeyoung Mentor</h3>
+                <button
+                  type="button"
+                  className="close-btn"
+                  onClick={() => setShowAddMentor(false)}
+                >
+                  ✕
+                </button>
+              </div>
+              <form onSubmit={handleAddMentorSubmit}>
+                <div className="modal-body">
+                  <div className="form-group">
+                    <label htmlFor="mentor-name">Mentor Full Name</label>
+                    <input
+                      id="mentor-name"
+                      type="text"
+                      className="form-input"
+                      value={newMentor.name}
+                      onChange={(e) => setNewMentor({ ...newMentor, name: e.target.value })}
+                      placeholder="e.g. Ananya Rao"
+                      required
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label htmlFor="mentor-email">Email Address</label>
+                    <input
+                      id="mentor-email"
+                      type="email"
+                      className="form-input"
+                      value={newMentor.email}
+                      onChange={(e) => setNewMentor({ ...newMentor, email: e.target.value })}
+                      placeholder="e.g. ananya@codeyoung.com"
+                      required
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label htmlFor="mentor-tz">Timezone (IANA)</label>
+                    <input
+                      id="mentor-tz"
+                      type="text"
+                      className="form-input"
+                      value={newMentor.timezone}
+                      onChange={(e) => setNewMentor({ ...newMentor, timezone: e.target.value })}
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="modal-footer">
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={() => setShowAddMentor(false)}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="btn btn-primary"
+                    disabled={addingMentor}
+                  >
+                    {addingMentor ? 'Saving...' : 'Add Mentor'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* MODAL: PARENT BOOKINGS */}
+        {selectedParent && (
+          <div className="modal-backdrop">
+            <div className="modal-dialog modal-lg">
+              <div className="modal-header">
+                <h3>Bookings for {selectedParent.name} ({selectedParent.email})</h3>
+                <button
+                  type="button"
+                  className="close-btn"
+                  onClick={() => setSelectedParent(null)}
+                >
+                  ✕
+                </button>
+              </div>
+              <div className="modal-body">
+                {loadingParentBookings ? (
+                  <p>Loading bookings...</p>
+                ) : parentBookings.length === 0 ? (
+                  <p>No bookings found for this parent.</p>
+                ) : (
+                  <div className="table-responsive">
+                    <table className="admin-table">
+                      <thead>
+                        <tr>
+                          <th>Ref</th>
+                          <th>Student</th>
+                          <th>Mentor</th>
+                          <th>Local Scheduled Time</th>
+                          <th>Status</th>
+                          <th>Meeting Link</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {parentBookings.map((pb) => (
+                          <tr key={pb.id}>
+                            <td>#{pb.id}</td>
+                            <td>{pb.child_name}</td>
+                            <td>{pb.mentor_name}</td>
+                            <td>{pb.local_display}</td>
+                            <td><span className="status-badge">{pb.status}</span></td>
+                            <td>
+                              <a
+                                href={pb.class_link}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="class-link-btn"
+                              >
+                                Room ↗
+                              </a>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+              <div className="modal-footer">
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => setSelectedParent(null)}
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </main>
+    </div>
+  );
+}
+
+export default AdminPage;

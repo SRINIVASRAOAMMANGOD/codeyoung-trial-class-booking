@@ -10,7 +10,7 @@ import BookingConfirmation from '../components/BookingConfirmation';
 import { getSlots, createBooking } from '../api/bookingApi';
 import { getBookableDates, isValidEmail } from '../utils/dateUtils';
 
-function BookingPage() {
+function BookingPage({ currentView, onViewChange }) {
   // 1. Initial State
   const initialDates = getBookableDates();
   const defaultDate = initialDates[0]?.isoString || '';
@@ -187,7 +187,7 @@ function BookingPage() {
 
   return (
     <div className="booking-page-layout">
-      <Header />
+      <Header currentView={currentView} onViewChange={onViewChange} />
 
       <main className="booking-container">
         {alert && (
