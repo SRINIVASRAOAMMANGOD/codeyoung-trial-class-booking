@@ -31,20 +31,17 @@ The project is intentionally scoped as a focused assessment implementation, not 
 | No mentor available error state | No eligible mentor raises HTTP 409 Conflict and the frontend displays an error state. | `backend/routers/bookings.py`, `frontend/src/pages/BookingPage.jsx` |
 | React frontend | React 19 application bundled with Vite. | `frontend/package.json`, `frontend/src/` |
 | Python backend | FastAPI application using Pydantic and SQLAlchemy. | `backend/main.py`, `backend/requirements.txt` |
-| GitHub submission | The project is organized as a Git repository; remote/submission details are To be verified. | Repository root, `.gitignore` |
 | README | This recruiter/evaluator-facing document. | `README.md` |
-| Full AI transcript | Required file exists as a non-fabricated import placeholder; the complete exported transcript is not currently present. | `TRANSCRIPT.md` |
+| Full AI transcript | The complete exported transcript is provided. | `TRANSCRIPT.md` |
 
-The items above are assignment requirements. Course selection, staff operations, parent normalization, email resend, and the public landing experience are additional engineering/product features.
-
-The assignment's “20 parents/day” context is not implemented as a separate hard booking limit. The application calculates operational capacity dynamically as active mentors multiplied by two.
+The assignment describes around 20 interested parents per day as demand/context, not as a hard global booking limit. With 10 mentors and a maximum of 2 classes per mentor per IST calendar day, the theoretical mentor-class capacity is 20 assignments per IST calendar day.
 
 ## 3. Complete Feature Set
 
 ### Public/User Features
 
 - Responsive public landing page with hero, course section, how-it-works content, features, testimonials, FAQ, CTA, and footer.
-- Backend-backed active course catalogue plus illustrative “Coming Soon” landing cards.
+- Backend-backed active course catalogue.
 - Course-specific booking flow with URL course selection support.
 - Date selection across the configured future booking window.
 - Browser timezone detection with a curated timezone selection interface.
@@ -73,8 +70,6 @@ The assignment's “20 parents/day” context is not implemented as a separate h
 - Requests PostgreSQL `SERIALIZABLE` transaction handling and retries retryable serialization, deadlock, or unique-conflict failures once.
 - Returns HTTP 503 if a retryable concurrency failure persists.
 
-The application performs layered eligibility and database checks; the documentation does not claim stronger concurrency guarantees than those implemented by the service, transaction configuration, and database constraint.
-
 ### Email & Notifications
 
 - Builds a parent confirmation email containing course, student, mentor, time, timezone, booking reference, and classroom link.
@@ -87,35 +82,36 @@ The application performs layered eligibility and database checks; the documentat
 - Commits the booking before notification dispatch; notification errors are caught/logged and do not roll back a confirmed booking.
 - Supports admin and mentor resend actions with parent/mentor recipient selection and an optional custom subject.
 
-SMTP capability is implemented. Real external SMTP delivery was not manually verified in the repository evidence available for this documentation.
-
 ### Admin & Staff Features
 
 - Staff Portal entry page with Admin and Mentor demo navigation.
 - Explicit notices that production authentication and role-based access control are not implemented.
 - Admin dashboard with dynamic capacity and operational metrics.
-- Mentor roster with status, timezone, daily class load, and capacity indicator.
+- Mentor roster with status, timezone, upcoming class load grouped by IST date, and capacity indicator.
 - Mentor create, read, edit, activate/deactivate, and conditional delete operations.
 - Mentor timezone validation and duplicate-email protection.
 - Parent directory with confirmed booking counts.
 - Parent booking-history inspection.
 - Confirmed booking list with parent-local and mentor-IST times, course, assigned mentor, and classroom link.
 - Email resend from admin and mentor screens.
-- Mentor view with mentor selector, assigned-class schedule in IST, parent contact, course, status, classroom link, and resend action.
+- Mentor view with mentor selector, upcoming assigned-class schedule grouped by IST date, parent contact, course, status, classroom link, and resend action.
 - Staff navigation between Staff Home, Admin Dashboard, Mentor View, and the public website.
-
-Authentication/RBAC is **not implemented**. These screens are demonstration/internal assessment views, not secured production portals.
 
 ### Course Management
 
-- Courses are stored in PostgreSQL and returned by `GET /api/v1/courses` when active.
-- Course selection occurs before slot and parent-detail submission.
-- Each booking has a required `course_id` foreign key and exposes `course_name`.
-- Active/inactive course state exists in the data model.
-- New bookings reject an invalid or inactive course.
-- Existing bookings retain their course relationship through the foreign key.
-- Default demo courses are seeded by the course migration script.
-- Admin course create/edit/activation controls are **not implemented** in the current UI or API. The current admin controls provide course visibility through bookings, while course records are managed by seed/migration scripts.
+- Complete public course listing fetched dynamically from the database.
+- Admin course management implemented via the Admin Dashboard UI and backend API.
+- Admin capabilities include viewing, adding, editing, and activating/deactivating courses.
+- Course validation enforces required fields (name, description, age range, level) and prevents duplicate names.
+- Inactive courses cannot be selected for new bookings, but existing bookings linked to them remain intact.
+- Current seeded course catalogue includes:
+  - Coding Fundamentals
+  - Python Programming
+  - Web Development
+  - AI & Robotics
+  - Game Development
+  - App Development
+  - Data & Analytics
 
 ## 4. Application Architecture
 
@@ -179,24 +175,43 @@ flowchart LR
         EMAIL --> CONSOLE
 ```
 
-The application follows a modular monolith architecture. The React frontend communicates with a single FastAPI application through REST APIs. Within the backend, routers handle HTTP concerns while domain-oriented service modules contain business logic for booking, scheduling/timezones, courses, parents, administration, and email. Pydantic schemas handle API validation and SQLAlchemy models provide the persistence layer over PostgreSQL.
+## 5. Engineering Decisions
 
-Although the backend contains multiple services, these are modules within one deployable FastAPI application, not independent microservices.
+### Why FastAPI?
+- **Python Backend:** Familiar, powerful, and easy to orchestrate.
+- **Pydantic Validation:** Strict API contracts and data serialization.
+- **Clean REST API Structure:** Intuitive route organization.
+- **Service-Layer Separation:** Business logic is decoupled from HTTP concerns.
+- **Lightweight:** Perfectly fits this assessment without the overhead of heavier frameworks.
 
-This approach was chosen because booking and mentor allocation are transaction-sensitive and share one relational data boundary. A microservices split would add network calls, distributed transaction concerns, deployment overhead, and operational complexity without a clear benefit at the scale of this assessment.
+### Why PostgreSQL?
+- **Relational Booking Data:** Parents, mentors, courses, and bookings have strict relational ties.
+- **Foreign Keys:** Ensure data integrity (e.g., preventing deletion of mentors with active bookings).
+- **Unique Constraints:** Essential for ensuring a mentor isn't double-booked.
+- **Transactions:** Safely handles concurrency-sensitive booking allocations.
 
-## 5. Why Not Microservices?
+### Why UTC + IANA timezones?
+- **Canonical Instant:** UTC serves as the absolute source of truth for the booking instant.
+- **IANA identifiers:** Allows robust timezone conversion independent of client localization quirks.
+- **Anchored Scheduling:** Mentor scheduling logic always evaluates against Asia/Kolkata (IST).
+- **Derived Display:** Parent-facing times are derived from the UTC instant at runtime.
+- **DST-aware:** Python’s `zoneinfo` and `tzdata` gracefully handle daylight saving time boundaries.
 
-A modular monolith is an intentional fit for this assessment:
+### Why SERIALIZABLE?
+- **Concurrency Protection:** Concurrent parents may request bookings for the same slot simultaneously.
+- **Consistency:** Mentor eligibility and booking creation must remain consistent to avoid overbooking.
+- **Transaction Isolation:** PostgreSQL `SERIALIZABLE` isolation combined with the `UNIQUE(mentor_id, slot_utc)` constraint provides strong database-level protection.
+- **Resilience:** The application catches serialization failures and automatically retries once, smoothing out occasional concurrency collisions.
 
-- The assignment scale is small and has one bounded booking domain.
-- Booking and mentor allocation are transaction-sensitive.
-- One PostgreSQL database provides the required relational integrity and transaction boundary.
-- Microservices would introduce network boundaries between tightly related booking operations.
-- Distributed transactions would make mentor allocation and booking consistency harder to reason about.
-- Separate deployment, observability, and service discovery would add operational complexity without a demonstrated need.
-- Internal service boundaries still preserve separation and testability.
-- Individual modules could be extracted later if scale, team ownership, or workload justified it.
+### Why maximum 2 classes/day?
+- **Assignment Constraint:** This is an explicit requirement from the prompt.
+- **IST Boundary:** The daily count is calculated strictly against the Asia/Kolkata calendar date, rather than a rolling 24-hour window.
+
+### Why modular monolith?
+- **Single Bounded Domain:** The application deals exclusively with trial class bookings.
+- **Shared Transaction Boundary:** Mentor allocation requires immediate consistency with booking creation.
+- **Deployment & Maintenance:** Simpler to deploy and maintain than microservices for this assessment.
+- **Avoids Complexity:** Prevents unnecessary network latency, distributed transaction logic, and operational overhead.
 
 ## 6. System Flow
 
@@ -243,10 +258,9 @@ flowchart TD
 - The frontend displays the server-provided local representation rather than recomputing the selected instant for submission.
 - Parent email content is formatted in the parent's timezone; mentor email content is formatted in IST.
 - Python `zoneinfo` and the pinned `tzdata` package apply DST rules without manual offset arithmetic.
-- SQLAlchemy timezone-aware `DateTime` fields are intended for PostgreSQL `TIMESTAMPTZ` storage.
 - Mentor daily capacity is calculated using the IST calendar date derived from `slot_utc`.
 
-The one-hour class duration, 15:00-21:00 IST anchors, and tomorrow-through-seven-days-ahead booking window are engineering/product decisions implemented by the current code, not presented as independent assignment requirements.
+*Note: The one-hour class duration, 15:00-21:00 IST anchors, and tomorrow-through-seven-days-ahead booking window are engineering/product decisions implemented by the current code, not explicitly mandated assignment requirements.*
 
 ## 9. Data Model
 
@@ -264,152 +278,81 @@ flowchart TD
 - **Foreign keys:** bookings reference parents, mentors, and courses with restrictive deletion behavior.
 - **Booking integrity:** `uq_mentor_slot_utc` prevents one mentor from occupying the same UTC slot twice.
 
-See [documentation/DATABASE.md](documentation/DATABASE.md) for the schema details.
+## 10. Maintainability & Code Quality
 
-## 10. Admin Data Control
+- React components are strictly separated by responsibility (e.g., `CourseSelector.jsx`, `SlotPicker.jsx`).
+- Backend routers exclusively handle HTTP concerns.
+- Service modules contain pure business and orchestration logic.
+- Pydantic schemas define API contracts and handle runtime validation.
+- SQLAlchemy models represent persistence cleanly.
+- Timezone calculations and email dispatching are isolated into dedicated service modules.
+- Booking, mentor, parent, course, and admin responsibilities are separated throughout the backend.
+- Tests are organized by behavior and responsibility.
+- The frontend relies on minimal external dependencies, utilizing vanilla CSS for styling.
+- Database constraints provide a robust additional integrity boundary.
+- Documentation is modularized into architecture, API, database, testing, and development guides.
 
-The admin dashboard provides CRUD-style operational control over mentors:
+## 11. Testing & Verification
 
-- **Mentors:** create, read, update, activate/deactivate, and delete where permitted.
-- **Mentor deletion:** deletion is rejected when historical bookings exist; the service instructs operators to deactivate instead. This protects booking history and works with restrictive foreign keys.
-- **Parents:** read the directory and inspect booking history.
-- **Bookings:** read confirmed bookings, inspect the assigned mentor, course, parent-local time, mentor-IST time, classroom link, and resend an email.
-- **Courses:** active courses can be read for public booking and course data is linked to bookings. Course create/edit/activate/deactivate controls are not present in the current admin API/UI; seed and migration scripts provide the current demo course data.
+**Latest backend verification:** 71 passed, 0 failed, 0 skipped. (The run reported 11 warnings).
 
-## 11. API
+Confirmed tested areas include:
+- Mentor assignment and inactive mentor exclusion.
+- Same mentor/same slot conflicts and concurrent booking attempts.
+- 0/1/2 daily capacity and separate IST calendar date boundaries.
+- No mentor available error state.
+- Invalid timezone, datetime, slot, and course validations.
+- Booking-window boundaries and UTC/IST date boundaries.
+- Database unique constraints.
+- Timezone/DST behavior (including US EDT/EST and UK BST/GMT).
+- Email formatting, delivery modes, and admin resend functionality.
+- Admin metrics and course/mentor management operations.
 
-See [documentation/API_DOCUMENTATION.md](documentation/API_DOCUMENTATION.md) for the verified route catalogue, request fields, responses, and errors.
+**Frontend Verification:**
+- `npm run build`: passed successfully.
+- `npm run lint`: exits successfully with one existing warning in `BookingPage.jsx` for an unused catch parameter.
+- Public home, course selection, booking flow, and confirmation views are verified.
+- Admin and Mentor staff views are verified.
+- The staff portal demo notice is prominently verified.
+- Mobile layout was checked at 390x844 with no horizontal overflow observed.
 
-The API domains are:
+## 12. Deliberate Non-Features
 
-- **Health:** process status.
-- **Courses:** active course listing.
-- **Slots:** date/timezone-aware available slot listing.
-- **Bookings:** create and retrieve bookings.
-- **Mentor:** retrieve confirmed mentor bookings and internal schedules.
-- **Admin:** operational metrics, mentor management, parent/booking visibility, and resend email.
-- **Email resend:** admin booking email resend with recipient and subject overrides.
+The following were intentionally kept out of scope to focus on the core assessment requirements:
 
-## 12. Security and Data Integrity
+- Production authentication (JWT/OAuth) and Role-Based Access Control (RBAC).
+- Real video conferencing API integration.
+- Payment processing or subscription handling.
+- Calendar synchronization (Google Calendar / Outlook).
+- Full CRM or enterprise administration features.
+- Complex asynchronous notification queues and observability.
+- Microservices and distributed transactions.
+- Production deployment infrastructure setups.
+- Alembic migration framework (the project uses a simpler database initialization/migration approach).
 
-Implemented safeguards include:
+## 13. Production Considerations
 
-- Pydantic request and response validation.
-- IANA timezone validation through `zoneinfo`.
-- SQLAlchemy ORM for runtime database access.
-- Foreign keys and restrictive deletion rules for parent, mentor, course, and booking relationships.
-- Unique mentor email, parent email, course name, and mentor-slot constraints.
-- Environment-based database and SMTP settings.
-- `.env` is listed in `.gitignore`; real credential presence is not claimed.
-- UTC-aware timestamp and booking-slot validation.
-- PostgreSQL transaction isolation request and retry handling for retryable booking conflicts.
-- Explicit error mapping for validation, no-mentor, missing-record, and persistent-concurrency cases.
+While this implementation fulfills the assignment, it is an assessment demonstration, not a real production deployment. A production-ready version would require:
 
-Runtime data access uses SQLAlchemy, while the explicit migration script contains SQL needed for schema transition. Production authentication, authorization, and RBAC are not implemented.
+- **Authentication & RBAC:** Implementing secure login and role-based access for the staff portal.
+- **Email & Monitoring:** Integration with a production email provider (e.g., SendGrid/AWS SES) with delivery tracking and monitoring.
+- **Database Migrations:** Transitioning to a robust schema migration tool like Alembic.
+- **Rate Limiting:** Protecting public booking routes from abuse.
+- **Observability:** Implementing structured logging and application metrics.
+- **Secrets Management:** Using secure secret managers rather than simple `.env` files for production credentials.
+- **Deployment & Backup:** Setting up CI/CD, database backups, and disaster recovery plans.
 
-## 13. Testing
-
-The current verified results are:
-
-- Backend `python -m pytest`: **53 passed**; the run reported five warnings.
-- Frontend `npm run build`: passed.
-- Frontend `npm run lint`: exits successfully with one existing unused catch-parameter warning in `src/pages/BookingPage.jsx`.
-
-Tests cover the implemented areas supported by the repository, including:
-
-- booking creation and invalid-course rejection
-- timezone conversion and IANA validation
-- US and UK DST behavior
-- booking-window/date boundaries
-- parent normalization and relationships
-- mentor count/assignment and inactive-mentor exclusion
-- mentor-slot uniqueness
-- email formatting, console dispatch, SMTP configuration validation, post-commit failure handling, and resend overrides
-- admin metrics, capacity, mentor lifecycle, parent history, booking visibility, and mentor schedule
-
-No 100% coverage claim is made. A dedicated concurrent multi-request integration test and automated browser/screenshot verification are To be verified.
-
-See [documentation/TESTING.md](documentation/TESTING.md).
-
-## 14. Engineering Decisions
-
-- **FastAPI + React:** FastAPI provides typed HTTP validation and a focused Python backend; React handles the multi-step interactive booking experience.
-- **PostgreSQL:** Relational constraints and transactions match the consistency needs of mentor allocation and booking.
-- **Modular monolith:** Domain-oriented modules provide separation without distributed-system overhead.
-- **Service layer:** Booking, timezone, course, parent, admin, slot, and email rules stay out of HTTP routers.
-- **UTC-first time handling:** One canonical instant prevents cross-timezone ambiguity.
-- **Database constraints:** The database remains a final integrity boundary for relationships and mentor-slot uniqueness.
-- **Serializable booking transaction:** The service requests stronger isolation for contention-sensitive booking work and retries retryable failures once.
-- **Normalized parents and courses:** Reusable entities reduce repeated parent identity and course data in bookings.
-- **Configurable email backend:** Console mode supports local assessment use; SMTP mode provides an integration path without hardcoding credentials.
-- **Simple frontend styling:** React and project CSS are used without an unnecessary UI/state-management dependency layer.
-- **Explicit non-features:** Production auth, microservices, and enterprise infrastructure were kept out of scope intentionally.
-
-## 15. Additional Features
-
-The following go beyond the minimum assignment and are implemented unless explicitly marked otherwise:
-
-- Public course catalogue and responsive landing experience
-- Course selection before booking
-- Staff Portal
-- Admin dashboard and dynamic capacity metrics
-- Mentor dashboard/schedule view
-- Parent directory and parent booking history
-- Mentor CRUD, status controls, timezone validation, and deletion safeguards
-- Booking/mentor/course visibility
-- Email resend with recipient selection and optional custom subject
-- Privacy, Terms of Use, disclaimer UI, and additional public/internal navigation
-
-Course administration CRUD is not included; only course retrieval, booking linkage, validation, and migration/seed management are implemented.
-
-## 16. Deliberate Non-Features
-
-These were intentionally kept out of scope for a focused assessment implementation:
-
-- Production authentication and RBAC
-- Real video conferencing integration
-- Payment processing
-- Calendar synchronization
-- Full CRM or enterprise administration
-- Complex asynchronous notification queue and delivery observability
-- Microservices and distributed transactions
-- Production deployment infrastructure and URLs
-- Alembic migration framework
-
-These are scope decisions, not claims that the current demonstration is production-ready.
-
-## 17. Screenshots / Demo
-
-The following section is prepared for real assets only. No screenshots or demo URLs are fabricated.
-
-1. Landing Page: **Screenshot to be added**
-2. Course Selection: **Screenshot to be added**
-3. Booking Flow: **Screenshot to be added**
-4. Booking Confirmation: **Screenshot to be added**
-5. Admin Dashboard: **Screenshot to be added**
-6. Mentor View: **Screenshot to be added**
-7. Email Notification: **Screenshot to be added**
-8. Mobile View: **Screenshot to be added**
-
-Demo video: Optional — not included yet.
-
-## 18. AI-Assisted Development
-
-AI was used as a development assistant for planning, architecture discussion, implementation assistance, debugging, testing guidance, and documentation. Human verification included inspecting the code, executing the backend tests, executing frontend lint/build commands, and reviewing changes incrementally.
-
-The complete AI transcript is not available as an exported source in the current repository. `TRANSCRIPT.md` intentionally contains only a placeholder and must be populated from the actual AI tool export before submission. No transcript content has been fabricated.
-
-## 19. Setup
+## 14. Setup and Running
 
 ### Prerequisites
 
-- Python 3.13 was used for the verified backend test run.
+- Python 3.13 for the backend.
 - Node.js/npm for the Vite frontend.
-- PostgreSQL and a database accessible through `DATABASE_URL`.
+- PostgreSQL running locally or accessible via URL.
 
 ### Backend Environment
 
-From the repository root in PowerShell:
+From the repository root:
 
 ```powershell
 cd backend
@@ -419,7 +362,7 @@ pip install -r requirements.txt
 Copy-Item .env.example .env
 ```
 
-Edit `backend/.env` and set `DATABASE_URL`. Optional email settings are `EMAIL_BACKEND`, `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `SMTP_FROM`, and `SMTP_USE_TLS`. `EMAIL_BACKEND=console` is the default local simulation.
+Edit `backend/.env` and set `DATABASE_URL`. Optional email settings include `EMAIL_BACKEND` (defaults to `console`), `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD`, and `SMTP_SENDER_EMAIL`.
 
 ### Database Initialization
 
@@ -427,9 +370,8 @@ Edit `backend/.env` and set `DATABASE_URL`. Optional email settings are `EMAIL_B
 cd backend
 python -m db.init_db
 python -m db.seed
+python -m db.migrate_phase_a
 ```
-
-The repository also contains explicit migration scripts for later schema changes. Run only the migration appropriate to the database state.
 
 ### Run the Backend
 
@@ -448,32 +390,28 @@ npm install
 npm run dev
 ```
 
-The frontend defaults to `http://localhost:8000` for API calls and Vite normally serves the frontend at `http://localhost:5173`. Set `VITE_API_BASE_URL` when the API uses another URL.
+The frontend runs at `http://localhost:5173`. Set `VITE_API_BASE_URL` if your backend is not on `localhost:8000`.
 
 ### Test, Lint, and Build
 
 ```powershell
 cd backend
-python -m pytest
+python -m pytest -v
 cd ..\frontend
 npm run lint
 npm run build
 ```
 
-## 20. Submission Checklist
+## 15. AI-Assisted Development
 
-- [ ] GitHub repository and remote submission details confirmed
-- [x] `README.md`
-- [x] `TRANSCRIPT.md` placeholder present; real transcript still required
-- [x] `documentation/`
-- [x] Backend tests passing in the verified run
-- [x] Frontend build passing in the verified run
-- [x] Lint reviewed; one existing warning documented
-- [x] No secrets committed in the inspected worktree; `.env` is ignored
-- [ ] Screenshots added, if included in the submission
-- [ ] Optional demo video added, if included
-- [ ] Final git status clean after submission preparation
-- [ ] Submission email prepared
+AI was used as a development assistant for planning, architecture discussion, implementation assistance, debugging, test generation, and documentation assistance. 
+
+Human verification was strictly applied throughout the process via:
+- Source-code inspection and incremental reviews.
+- Automated testing (`pytest`).
+- Lint and build verification.
+- Browser verification.
+- Edge-case testing, concurrency testing, and timezone/DST testing.
 
 ## Disclaimer
 

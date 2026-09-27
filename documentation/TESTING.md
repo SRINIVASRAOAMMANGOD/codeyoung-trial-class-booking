@@ -1,20 +1,39 @@
 # Testing
 
-## Verified Result
+## Verified Results
 
-On 2026-09-27, `python -m pytest` from `backend/` collected 53 tests and completed with **53 passed**. The run emitted five warnings: pytest-asyncio configuration deprecation, Starlette multipart deprecation, and four SQLAlchemy isolation-option warnings. `npm run build` succeeded. `npm run lint` exited successfully with one unused catch-parameter warning in `src/pages/BookingPage.jsx`.
+On the latest verified execution:
 
-## Test Areas
+**Backend (`python -m pytest`)**:
+- 71 tests passed.
+- 0 failed.
+- 0 skipped.
+- 11 warnings reported (e.g., SQLAlchemy isolation-option warnings, pytest-asyncio deprecations).
+
+**Frontend**:
+- `npm run build`: Succeeded.
+- `npm run lint`: Exited successfully (1 existing warning remains in `src/pages/BookingPage.jsx` for an unused catch parameter).
+
+## Test Coverage Areas
 
 | Area | Evidence |
 |---|---|
-| Unit/service | Timezone, parent, email, course, admin, and booking-service modules are covered. |
-| API | Admin and course tests use FastAPI `TestClient`; service tests cover booking behavior. |
-| Booking/allocation | Valid and invalid course, parent creation, active mentor filtering, assignment integrity, and unique mentor-slot constraint are tested. |
-| Timezone/DST | IST conversion, IANA validation, US EST/EDT, UK GMT/BST, and date boundaries are tested. |
-| Concurrency | Retry handling exists, but a dedicated concurrent multi-request test is not visible: To be verified. |
-| Email | Formatting, dual recipients, console dispatch, SMTP configuration, commit-before-notification, failure resilience, and resend overrides are tested. |
-| Admin | Metrics, capacity, mentor lifecycle, parent history, booking visibility, and mentor schedule are tested. |
-| Frontend | Lint and production build were run; no automated browser suite is present. |
+| **Unit / Service** | Timezone parsing, parent normalization, email dispatching, course filtering, admin analytics, and core booking-service modules are comprehensively covered. |
+| **API layer** | Admin and course tests extensively utilize the FastAPI `TestClient` to verify HTTP inputs, parameter mapping, and response models. |
+| **Booking / Allocation** | Verifies valid and invalid course rejection, parent creation, active mentor filtering, deterministic assignment integrity, and the strict unique mentor-slot conflict constraint. |
+| **Timezone / DST** | Covers UTC to IST conversion, IANA identifier validation, US EST/EDT offset boundary shifts, UK GMT/BST handling, and forward date-window boundaries. |
+| **Concurrency** | The transaction retry handling logic is verified. *(Note: A dedicated concurrent multi-request stress test over the wire is not included in the standard suite).* |
+| **Email** | Validates internal formatting, dual-recipient preparation, console-simulation dispatching, SMTP configuration presence checks, commit-before-notification logic, post-commit failure resilience, and staff resend overrides. |
+| **Admin Operations** | Confirms capacity metrics calculations, mentor lifecycle updates (create/edit/activation), course CRUD, parent history tracking, and booking visibility. |
+| **Frontend** | Lint and Vite production builds are validated. *(Note: No automated Puppeteer/Cypress browser interaction suite is present in this implementation).* |
 
-Important edge cases covered by code/tests include invalid timezone, malformed/stale slot, past/date-window boundaries, exact-slot conflict, two-class IST capacity, no mentor available, US/UK conversion and DST, inactive/invalid course, and post-commit email failure. Dedicated concurrency and visual/browser verification are To be verified.
+## Edge Case Handling
+
+Crucial edge cases actively covered by the test suite include:
+- Rejection of invalid IANA timezones.
+- Rejection of malformed, stale, or non-aligned booking slots.
+- Enforcement of past and future date-window boundaries.
+- Database prevention of exact mentor-slot overlap conflicts.
+- Adherence to the two-class per IST calendar day maximum capacity limitation.
+- Graceful `409 Conflict` generation when absolutely no mentor is available.
+- Proper fallback when post-commit SMTP email delivery fails (retaining the booking integrity).

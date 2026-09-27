@@ -1,25 +1,77 @@
 # Database
 
-The ORM defines four application tables. PostgreSQL is the configured target; deployed contents are To be verified.
+The Codeyoung Trial Class Booking System relies on PostgreSQL as its persistence layer, managed via the SQLAlchemy ORM.
 
-## `parents`
+## Schema Overview
 
-Normalized parent identity. `id` is the indexed primary key; `name`, `email`, and `created_at` are required. Email is unique and indexed. One parent has many bookings. The Phase 10 migration backfills this table and makes `bookings.parent_id` required.
+The database is built on four core normalized tables: `parents`, `mentors`, `courses`, and `bookings`. All date/time fields (`created_at`, `slot_utc`) are stored as timezone-aware `TIMESTAMPTZ` values, strictly enforcing UTC at rest.
 
-## `mentors`
+```mermaid
+flowchart LR
+    P[parents]
+    M[mentors]
+    C[courses]
+    B[bookings]
+    
+    P -->|1:N parent_id| B
+    M -->|1:N mentor_id| B
+    C -->|1:N course_id| B
+```
 
-`id` is an indexed primary key; `name`, unique `email`, `timezone`, and `is_active` are required. `bookings.mentor_id` references it with `ON DELETE RESTRICT`. The seed script inserts ten fictional active `Asia/Kolkata` mentors idempotently.
+## Tables
 
-## `courses`
+### `parents`
 
-`id` is an indexed primary key; unique `name`, `description`, `is_active`, and timezone-aware `created_at` are required. Bookings reference courses with `ON DELETE RESTRICT`. Booking creation rejects missing or inactive courses.
+Stores the normalized identity of the parent booking the class. One parent may have multiple bookings.
 
-## `bookings`
+- `id`: Integer, Primary Key, Indexed.
+- `name`: String(100), Not Null.
+- `email`: String(150), Not Null, Unique, Indexed.
+- `created_at`: DateTime(timezone=True), Not Null, Default `func.now()`.
 
-`id` is an indexed primary key; `parent_id`, `mentor_id`, and `course_id` are required foreign keys. Other required fields are `child_name`, `parent_timezone`, `slot_utc`, `class_link`, `status`, and `created_at`. Timezone-aware `slot_utc` is intended to map to PostgreSQL `TIMESTAMPTZ` and is the canonical UTC instant.
+### `mentors`
 
-Named constraint `uq_mentor_slot_utc` prevents one mentor being assigned twice to the same UTC slot. Indexes exist on parent, mentor, and course foreign keys. Parent, mentor, and course relationships are bidirectional in SQLAlchemy.
+Stores the identity and capacity states of the system's teaching staff. The system seeds 10 fictional active `Asia/Kolkata` mentors during initialization.
 
-## Capacity and Schema Management
+- `id`: Integer, Primary Key, Indexed.
+- `name`: String(100), Not Null.
+- `email`: String(150), Not Null, Unique, Indexed.
+- `timezone`: String(50), Not Null, Default `"Asia/Kolkata"`.
+- `is_active`: Boolean, Not Null, Default `True`.
 
-Booking and slot services convert `slot_utc` to `Asia/Kolkata`, group confirmed bookings by IST date, and exclude mentors with two or more. Admin theoretical capacity is active mentors multiplied by two; there is no separate 20-booking limit. `db/init_db.py` uses `Base.metadata.create_all()`, while explicit scripts handle seed and parent normalization. Alembic is not present. Credentials are not documented.
+### `courses`
+
+Defines the available classes that a parent can select. Seven default courses are seeded.
+
+- `id`: Integer, Primary Key, Indexed.
+- `name`: String(150), Not Null, Unique.
+- `description`: String(500), Not Null.
+- `age_range`: String(50), Not Null, Default `"All Ages"`.
+- `level`: String(50), Not Null, Default `"All Levels"`.
+- `is_active`: Boolean, Not Null, Default `True`.
+- `created_at`: DateTime(timezone=True), Not Null, Default `func.now()`.
+
+### `bookings`
+
+The central junction entity binding a parent, course, and mentor to a specific appointment instant.
+
+- `id`: Integer, Primary Key, Indexed.
+- `parent_id`: Integer, Foreign Key (`parents.id`), Not Null, `ON DELETE RESTRICT`, Indexed.
+- `mentor_id`: Integer, Foreign Key (`mentors.id`), Not Null, `ON DELETE RESTRICT`, Indexed.
+- `course_id`: Integer, Foreign Key (`courses.id`), Not Null, `ON DELETE RESTRICT`, Indexed.
+- `child_name`: String(100), Not Null.
+- `parent_timezone`: String(50), Not Null.
+- `slot_utc`: DateTime(timezone=True), Not Null. (This is the canonical UTC booking instant).
+- `class_link`: String(255), Not Null. (Generated UUID dummy link).
+- `status`: String(20), Not Null, Default `"confirmed"`.
+- `created_at`: DateTime(timezone=True), Not Null, Default `func.now()`.
+
+## Integrity and Constraints
+
+- **Foreign Keys**: Bookings strictly restrict deletion (`ON DELETE RESTRICT`). You cannot delete a mentor, parent, or course if a booking historically references them. The frontend and backend instruct administrators to deactivate entities instead.
+- **Double-Booking Guard**: The `bookings` table explicitly implements `UniqueConstraint("mentor_id", "slot_utc", name="uq_mentor_slot_utc")`. This physically prevents PostgreSQL from allowing the same mentor to be scheduled for the same exact UTC hour.
+- **Capacity**: The maximum limit of 2 classes per mentor per IST day is evaluated dynamically at runtime by grouping `slot_utc` converted to the IST calendar date.
+
+## Initialization and Migration
+
+The project utilizes raw SQLAlchemy metadata generation (`Base.metadata.create_all()`) combined with idempotent initialization and seed Python scripts (`db/init_db.py`, `db/seed.py`, `db/migrate_phase_a.py`). **Alembic is not utilized** in this implementation to keep setup dependencies simple.
