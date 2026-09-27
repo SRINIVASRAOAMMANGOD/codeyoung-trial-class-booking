@@ -92,7 +92,7 @@ Assigned Mentor:  {mentor_name}
 Date:             {date_str}
 Scheduled Time:   {time_str}
 Timezone:         {tz_label}
-Booking Ref:      #{booking.id}
+Booking Ref:      {booking.id}
 
 CLASSROOM MEETING LINK:
 --------------------------------------------------
@@ -149,7 +149,7 @@ Parent:           {parent_name}
 Date:             {date_str}
 Scheduled Time:   {time_str}
 Timezone:         {tz_label}
-Booking Ref:      #{booking.id}
+Booking Ref:      {booking.id}
 
 CLASSROOM MEETING LINK:
 --------------------------------------------------

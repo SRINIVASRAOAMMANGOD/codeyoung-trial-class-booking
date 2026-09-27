@@ -23,16 +23,16 @@ from database import SessionLocal
 from models.mentor import Mentor
 
 MENTORS = [
-    {"name": "Priya Sharma",    "email": "priya.sharma@codeyoung.com"},
-    {"name": "Arjun Mehta",     "email": "arjun.mehta@codeyoung.com"},
-    {"name": "Divya Nair",      "email": "divya.nair@codeyoung.com"},
-    {"name": "Rohan Gupta",     "email": "rohan.gupta@codeyoung.com"},
-    {"name": "Sneha Iyer",      "email": "sneha.iyer@codeyoung.com"},
-    {"name": "Vikram Pillai",   "email": "vikram.pillai@codeyoung.com"},
-    {"name": "Anjali Desai",    "email": "anjali.desai@codeyoung.com"},
-    {"name": "Karan Joshi",     "email": "karan.joshi@codeyoung.com"},
-    {"name": "Meera Reddy",     "email": "meera.reddy@codeyoung.com"},
-    {"name": "Aditya Verma",    "email": "aditya.verma@codeyoung.com"},
+    {"name": "Priya Sharma",    "email": "priya.sharma@democodeyoung.com"},
+    {"name": "Arjun Mehta",     "email": "arjun.mehta@democodeyoung.com"},
+    {"name": "Divya Nair",      "email": "divya.nair@democodeyoung.com"},
+    {"name": "Rohan Gupta",     "email": "rohan.gupta@democodeyoung.com"},
+    {"name": "Sneha Iyer",      "email": "sneha.iyer@democodeyoung.com"},
+    {"name": "Vikram Pillai",   "email": "vikram.pillai@democodeyoung.com"},
+    {"name": "Anjali Desai",    "email": "anjali.desai@democodeyoung.com"},
+    {"name": "Karan Joshi",     "email": "karan.joshi@democodeyoung.com"},
+    {"name": "Meera Reddy",     "email": "meera.reddy@democodeyoung.com"},
+    {"name": "Aditya Verma",    "email": "aditya.verma@democodeyoung.com"},
 ]
 
 

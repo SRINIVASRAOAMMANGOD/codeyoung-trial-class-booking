@@ -32,6 +32,38 @@ export async function getMentors() {
   return handleResponse(res);
 }
 
+export async function getCourses() {
+  const res = await fetch(`${BASE_URL}/api/v1/admin/courses`);
+  return handleResponse(res);
+}
+
+export async function createCourse(payload) {
+  const res = await fetch(`${BASE_URL}/api/v1/admin/courses`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  return handleResponse(res);
+}
+
+export async function updateCourse(courseId, payload) {
+  const res = await fetch(`${BASE_URL}/api/v1/admin/courses/${courseId}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  return handleResponse(res);
+}
+
+export async function setCourseStatus(courseId, isActive) {
+  const res = await fetch(`${BASE_URL}/api/v1/admin/courses/${courseId}/status`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ is_active: isActive }),
+  });
+  return handleResponse(res);
+}
+
 export async function createMentor(payload) {
   const res = await fetch(`${BASE_URL}/api/v1/admin/mentors`, {
     method: 'POST',

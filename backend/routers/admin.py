@@ -9,6 +9,10 @@ from database import get_db
 from schemas.admin import (
     AdminBookingResponse,
     AdminOverviewResponse,
+    CourseAdminResponse,
+    CourseCreateRequest,
+    CourseStatusUpdateRequest,
+    CourseUpdateRequest,
     MentorAdminResponse,
     MentorCreateRequest,
     MentorUpdateRequest,
@@ -42,6 +46,63 @@ def list_mentors(db: Session = Depends(get_db)) -> list[MentorAdminResponse]:
     return admin_service.get_admin_mentors(db)
 
 
+@router.get("/courses", response_model=list[CourseAdminResponse], summary="List all courses")
+def list_courses(db: Session = Depends(get_db)) -> list[CourseAdminResponse]:
+    return admin_service.get_admin_courses(db)
+
+
+@router.post(
+    "/courses",
+    response_model=CourseAdminResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Create a course",
+)
+def add_course(course_in: CourseCreateRequest, db: Session = Depends(get_db)) -> CourseAdminResponse:
+    try:
+        return admin_service.create_course(db, course_in)
+    except ValueError as exc:
+        message = str(exc)
+        if "already exists" in message:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=message) from exc
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=message) from exc
+
+
+@router.patch("/courses/{id}", response_model=CourseAdminResponse, summary="Update a course")
+def edit_course(
+    id: int,
+    course_in: CourseUpdateRequest,
+    db: Session = Depends(get_db),
+) -> CourseAdminResponse:
+    try:
+        return admin_service.update_course(db, id, course_in)
+    except ValueError as exc:
+        message = str(exc)
+        if "not found" in message.lower():
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=message) from exc
+        if "already exists" in message:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=message) from exc
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=message) from exc
+
+
+@router.patch(
+    "/courses/{id}/status",
+    response_model=CourseAdminResponse,
+    summary="Activate or deactivate a course",
+)
+def set_course_status(
+    id: int,
+    status_in: CourseStatusUpdateRequest,
+    db: Session = Depends(get_db),
+) -> CourseAdminResponse:
+    course = admin_service.update_course_status(db, id, status_in.is_active)
+    if not course:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Course with ID {id} not found.",
+        )
+    return course
+
+
 @router.post(
     "/mentors",
     response_model=MentorAdminResponse,
@@ -64,6 +125,7 @@ def add_mentor(
             today_classes=0,
             capacity_label="0/2",
             is_full_today=False,
+            upcoming_capacity=[],
         )
     except ValueError as exc:
         msg = str(exc)

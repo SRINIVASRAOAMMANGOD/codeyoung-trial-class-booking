@@ -28,6 +28,8 @@ def migrate_phase_a() -> None:
                         id SERIAL PRIMARY KEY,
                         name VARCHAR(150) NOT NULL UNIQUE,
                         description VARCHAR(500) NOT NULL,
+                        age_range VARCHAR(50) NOT NULL DEFAULT 'All Ages',
+                        level VARCHAR(50) NOT NULL DEFAULT 'All Levels',
                         is_active BOOLEAN NOT NULL DEFAULT TRUE,
                         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
                     );
@@ -37,24 +39,36 @@ def migrate_phase_a() -> None:
         else:
             print("  -> 'courses' table already exists.")
 
+        course_cols = [c["name"] for c in inspector.get_columns("courses")]
+        if "age_range" not in course_cols:
+            conn.execute(text("ALTER TABLE courses ADD COLUMN age_range VARCHAR(50) NOT NULL DEFAULT 'All Ages';"))
+        if "level" not in course_cols:
+            conn.execute(text("ALTER TABLE courses ADD COLUMN level VARCHAR(50) NOT NULL DEFAULT 'All Levels';"))
+
         print("Seeding default courses...")
         seed_courses = [
-            ("Coding Fundamentals", "Build a strong foundation in programming and computational thinking through guided exercises."),
-            ("Python Programming", "Learn Python through practical, beginner-friendly projects and problem-solving challenges."),
-            ("Web Development", "Create websites and understand the fundamentals of modern web development with HTML, CSS, and JavaScript."),
-            ("AI & Robotics", "Explore AI concepts, automation and beginner-friendly robotics in hands-on interactive projects."),
+            ("Coding Fundamentals", "Build a strong foundation in programming and computational thinking through guided exercises.", "Ages 6–10", "Beginner"),
+            ("Python Programming", "Learn Python through practical, beginner-friendly projects and problem-solving challenges.", "Ages 10–16", "Beginner – Intermediate"),
+            ("Web Development", "Create websites and understand the fundamentals of modern web development with HTML, CSS, and JavaScript.", "Ages 12–18", "Intermediate"),
+            ("AI & Robotics", "Explore AI concepts, automation and beginner-friendly robotics in hands-on interactive projects.", "Ages 10–16", "Intermediate"),
+            ("Game Development", "Design and code your own interactive 2D and 3D games from scratch.", "Ages 10–16", "Intermediate"),
+            ("App Development", "Learn to build functional mobile applications for iOS and Android.", "Ages 12–18", "Advanced"),
+            ("Data & Analytics", "Discover how to collect, visualize, and understand data through code.", "Ages 14–18", "Advanced"),
         ]
         
-        for name, desc in seed_courses:
+        for name, desc, age_range, level in seed_courses:
             conn.execute(
                 text(
                     """
-                    INSERT INTO courses (name, description, is_active)
-                    VALUES (:name, :desc, TRUE)
-                    ON CONFLICT (name) DO UPDATE SET description = EXCLUDED.description;
+                    INSERT INTO courses (name, description, age_range, level, is_active)
+                    VALUES (:name, :desc, :age_range, :level, TRUE)
+                    ON CONFLICT (name) DO UPDATE SET
+                        description = EXCLUDED.description,
+                        age_range = EXCLUDED.age_range,
+                        level = EXCLUDED.level;
                     """
                 ),
-                {"name": name, "desc": desc}
+                {"name": name, "desc": desc, "age_range": age_range, "level": level}
             )
 
         booking_cols = [c["name"] for c in inspector.get_columns("bookings")]

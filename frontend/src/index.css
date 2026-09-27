@@ -2045,6 +2045,12 @@ input, select {
   text-align: center;
 }
 
+.upcoming-capacity-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
 /* ==========================================================================
    BOOKING PAGE TOP BAR
    ========================================================================== */

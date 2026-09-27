@@ -2,17 +2,20 @@
 tests/test_admin.py — Unit and integration tests for operational administration and mentor portal.
 """
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 import pytest
 from fastapi.testclient import TestClient
 
 from database import SessionLocal
 from main import app
 from models.booking import Booking
+from models.course import Course
 from models.mentor import Mentor
 from models.parent import Parent
 from schemas.booking import BookingCreate
 from services.booking_service import create_booking
+from services.slot_service import get_available_slots
+from services.timezone_service import get_ist_date_today
 
 client = TestClient(app)
 
@@ -54,8 +57,145 @@ class TestAdminEndpoints:
         assert "capacity_label" in first
         assert "is_full_today" in first
 
+    def test_admin_upcoming_capacity_is_grouped_by_ist_date(self, db):
+        suffix = int(datetime.now().timestamp() * 1000000)
+        mentor = Mentor(
+            name=f"Capacity Coach {suffix}",
+            email=f"capacity_{suffix}@example.com",
+            timezone="Asia/Kolkata",
+            is_active=True,
+        )
+        parent = Parent(name=f"Capacity Parent {suffix}", email=f"capacity_{suffix}@example.com")
+        course = db.query(Course).first()
+        db.add_all([mentor, parent])
+        db.commit()
+
+        slots = [
+            datetime(2035, 9, 28, 9, 30, tzinfo=timezone.utc),
+            datetime(2035, 9, 29, 9, 30, tzinfo=timezone.utc),
+            datetime(2035, 9, 29, 10, 30, tzinfo=timezone.utc),
+        ]
+        for slot in slots:
+            db.add(Booking(
+                parent_id=parent.id,
+                child_name="Capacity Child",
+                parent_timezone="America/New_York",
+                slot_utc=slot,
+                mentor_id=mentor.id,
+                course_id=course.id,
+                class_link=f"https://class.codeyoung.com/room/{suffix}-{slot.hour}",
+                status="confirmed",
+            ))
+        db.commit()
+
+        try:
+            response = client.get("/api/v1/admin/mentors")
+            assert response.status_code == 200
+            item = next(m for m in response.json() if m["id"] == mentor.id)
+            assert item["upcoming_capacity"] == [
+                {"ist_date": "2035-09-28", "classes_booked": 1, "capacity": 2},
+                {"ist_date": "2035-09-29", "classes_booked": 2, "capacity": 2},
+            ]
+        finally:
+            db.query(Booking).filter(Booking.mentor_id == mentor.id).delete(synchronize_session=False)
+            db.delete(parent)
+            db.delete(mentor)
+            db.commit()
+
+    def test_admin_course_management_and_inactive_filter(self):
+        suffix = int(datetime.now().timestamp() * 1000000)
+        payload = {
+            "name": f"Test Course {suffix}",
+            "description": "A course created by the admin test.",
+            "age_range": "Ages 9-12",
+            "level": "Beginner",
+        }
+
+        created = client.post("/api/v1/admin/courses", json=payload)
+        assert created.status_code == 201
+        course_id = created.json()["id"]
+
+        try:
+            duplicate = client.post("/api/v1/admin/courses", json=payload)
+            assert duplicate.status_code == 409
+
+            updated = client.patch(
+                f"/api/v1/admin/courses/{course_id}",
+                json={"description": "Updated description.", "level": "Intermediate"},
+            )
+            assert updated.status_code == 200
+            assert updated.json()["description"] == "Updated description."
+            assert updated.json()["level"] == "Intermediate"
+
+            deactivated = client.patch(
+                f"/api/v1/admin/courses/{course_id}/status",
+                json={"is_active": False},
+            )
+            assert deactivated.status_code == 200
+            assert deactivated.json()["is_active"] is False
+
+            public_courses = client.get("/api/v1/courses")
+            assert course_id not in {course["id"] for course in public_courses.json()}
+            admin_courses = client.get("/api/v1/admin/courses")
+            assert any(course["id"] == course_id and not course["is_active"] for course in admin_courses.json())
+        finally:
+            with SessionLocal() as cleanup_db:
+                course = cleanup_db.query(Course).filter(Course.id == course_id).first()
+                if course:
+                    cleanup_db.delete(course)
+                    cleanup_db.commit()
+
+    def test_inactive_course_keeps_existing_booking_visible(self, db):
+        suffix = int(datetime.now().timestamp() * 1000000)
+        created = client.post("/api/v1/admin/courses", json={
+            "name": f"Historical Course {suffix}",
+            "description": "Course retained for historical booking coverage.",
+            "age_range": "Ages 10-14",
+            "level": "Intermediate",
+        })
+        assert created.status_code == 201
+        course_id = created.json()["id"]
+
+        mentor = db.query(Mentor).filter(Mentor.is_active == True).first()  # noqa: E712
+        parent = Parent(name=f"Historical Parent {suffix}", email=f"historical_{suffix}@example.com")
+        db.add(parent)
+        db.commit()
+        booking = Booking(
+            parent_id=parent.id,
+            child_name="Historical Child",
+            parent_timezone="America/New_York",
+            slot_utc=datetime(2040, 2, 1, 9, 30, tzinfo=timezone.utc),
+            mentor_id=mentor.id,
+            course_id=course_id,
+            class_link=f"https://class.codeyoung.com/room/historical-{suffix}",
+            status="confirmed",
+        )
+        db.add(booking)
+        db.commit()
+
+        try:
+            deactivated = client.patch(
+                f"/api/v1/admin/courses/{course_id}/status",
+                json={"is_active": False},
+            )
+            assert deactivated.status_code == 200
+
+            bookings = client.get("/api/v1/admin/bookings")
+            assert any(
+                item["id"] == booking.id and item["course_name"] == f"Historical Course {suffix}"
+                for item in bookings.json()
+            )
+        finally:
+            db.delete(booking)
+            db.delete(parent)
+            db.commit()
+            course = db.query(Course).filter(Course.id == course_id).first()
+            if course:
+                db.delete(course)
+                db.commit()
+
     def test_create_and_delete_mentor_with_zero_bookings(self, db):
-        unique_email = f"new_mentor_{int(datetime.now().timestamp())}@codeyoung.com"
+        unique_email = f"new_mentor_{int(datetime.now().timestamp())}@democodeyoung.com"
         payload = {
             "name": "Test Coach",
             "email": unique_email,
@@ -108,7 +248,7 @@ class TestAdminEndpoints:
 
     def test_mentor_edit(self, db):
         # Create a mentor to edit
-        unique_email = f"edit_mentor_{int(datetime.now().timestamp())}@codeyoung.com"
+        unique_email = f"edit_mentor_{int(datetime.now().timestamp())}@democodeyoung.com"
         create_res = client.post("/api/v1/admin/mentors", json={
             "name": "To Edit",
             "email": unique_email,
@@ -150,7 +290,17 @@ class TestAdminEndpoints:
 
         try:
             # Verify they are excluded from allocation
-            slot = datetime(2026, 10, 1, 9, 30, tzinfo=timezone.utc)
+            slot = None
+            for offset in range(1, 8):
+                slots = get_available_slots(
+                    get_ist_date_today() + timedelta(days=offset),
+                    "America/New_York",
+                    db,
+                )
+                if slots:
+                    slot = datetime.fromisoformat(slots[0]["utc_iso"])
+                    break
+            assert slot is not None, "No isolated available slot found for the inactive mentor test."
             booking_in = BookingCreate(
                 parent_name="Parent Test",
                 parent_email="parent_test@test.com",

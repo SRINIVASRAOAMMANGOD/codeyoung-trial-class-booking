@@ -76,7 +76,7 @@ class TestEmailFormattingAndContent:
 
     def test_parent_and_mentor_email_content_alignment(self):
         parent = Parent(name="Bruce Wayne", email="bruce@wayne.com")
-        mentor = Mentor(name="Aarav Sharma", email="aarav@codeyoung.com", timezone="Asia/Kolkata")
+        mentor = Mentor(name="Aarav Sharma", email="aarav@democodeyoung.com", timezone="Asia/Kolkata")
         slot_utc = datetime(2026, 9, 28, 9, 30, tzinfo=timezone.utc)
 
         booking = Booking(
@@ -96,7 +96,7 @@ class TestEmailFormattingAndContent:
 
         # 1. Recipient check
         assert parent_email["recipient"] == "bruce@wayne.com"
-        assert mentor_email["recipient"] == "aarav@codeyoung.com"
+        assert mentor_email["recipient"] == "aarav@democodeyoung.com"
 
         # 2. Timezone-specific display times
         assert "05:30 AM – 06:30 AM" in parent_email["class_time"]
@@ -121,7 +121,7 @@ class TestConsoleDispatchAndQueue:
 
     def test_send_booking_notifications_dispatches_two_emails(self):
         parent = Parent(name="Diana Prince", email="diana@themyscira.gov")
-        mentor = Mentor(name="Priya Patel", email="priya@codeyoung.com", timezone="Asia/Kolkata")
+        mentor = Mentor(name="Priya Patel", email="priya@democodeyoung.com", timezone="Asia/Kolkata")
         slot_utc = datetime(2026, 9, 28, 10, 30, tzinfo=timezone.utc)
 
         booking = Booking(
@@ -147,7 +147,7 @@ class TestConsoleDispatchAndQueue:
         mentor_entry = next(e for e in recent if e["recipient_type"] == "Mentor")
 
         assert parent_entry["recipient"] == "diana@themyscira.gov"
-        assert mentor_entry["recipient"] == "priya@codeyoung.com"
+        assert mentor_entry["recipient"] == "priya@democodeyoung.com"
         assert "11:30 AM – 12:30 PM" in parent_entry["class_time"]  # London BST
         assert "04:00 PM – 05:00 PM" in mentor_entry["class_time"]  # India IST
 
@@ -224,7 +224,7 @@ class TestResendEmail:
 
         # Seed data
         parent = Parent(name="Tony Stark", email="tony@stark.com")
-        mentor = Mentor(name="Peter Parker", email="peter@codeyoung.com", timezone="Asia/Kolkata")
+        mentor = Mentor(name="Peter Parker", email="peter@democodeyoung.com", timezone="Asia/Kolkata")
         slot_utc = datetime(2026, 9, 28, 9, 30, tzinfo=timezone.utc)
         booking = Booking(
             parent=parent,
@@ -261,7 +261,7 @@ class TestResendEmail:
 
         # Seed data
         parent = Parent(name="Steve Rogers", email="steve@avengers.com")
-        mentor = Mentor(name="Sam Wilson", email="sam@codeyoung.com", timezone="Asia/Kolkata")
+        mentor = Mentor(name="Sam Wilson", email="sam@democodeyoung.com", timezone="Asia/Kolkata")
         slot_utc = datetime(2026, 9, 28, 9, 30, tzinfo=timezone.utc)
         booking = Booking(
             parent=parent,

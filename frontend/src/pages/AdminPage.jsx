@@ -7,6 +7,10 @@ import ResendEmailModal from '../components/ResendEmailModal';
 import {
   getOverview,
   getMentors,
+  getCourses,
+  createCourse,
+  updateCourse,
+  setCourseStatus,
   createMentor,
   setMentorStatus,
   deleteMentor,
@@ -17,9 +21,10 @@ import {
 } from '../api/adminApi';
 
 function AdminPage({ currentView, onViewChange }) {
-  const [activeTab, setActiveTab] = useState('mentors'); // 'mentors' | 'parents' | 'bookings'
+  const [activeTab, setActiveTab] = useState('mentors'); // 'mentors' | 'courses' | 'parents' | 'bookings'
   const [overview, setOverview] = useState(null);
   const [mentors, setMentors] = useState([]);
+  const [courses, setCourses] = useState([]);
   const [parents, setParents] = useState([]);
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -40,21 +45,33 @@ function AdminPage({ currentView, onViewChange }) {
   const [parentBookings, setParentBookings] = useState([]);
   const [loadingParentBookings, setLoadingParentBookings] = useState(false);
 
+  const [showAddCourse, setShowAddCourse] = useState(false);
+  const [editingCourse, setEditingCourse] = useState(null);
+  const [courseForm, setCourseForm] = useState({
+    name: '',
+    description: '',
+    age_range: '',
+    level: '',
+  });
+  const [savingCourse, setSavingCourse] = useState(false);
+
 
 
   useEffect(() => {
     let ignore = false;
     async function loadInitial() {
       try {
-        const [ovData, mData, pData, bData] = await Promise.all([
+        const [ovData, mData, cData, pData, bData] = await Promise.all([
           getOverview(),
           getMentors(),
+          getCourses(),
           getParents(),
           getBookings(),
         ]);
         if (!ignore) {
           setOverview(ovData);
           setMentors(mData);
+          setCourses(cData);
           setParents(pData);
           setBookings(bData);
         }
@@ -179,6 +196,55 @@ function AdminPage({ currentView, onViewChange }) {
     }
   };
 
+  const openAddCourse = () => {
+    setCourseForm({ name: '', description: '', age_range: '', level: '' });
+    setShowAddCourse(true);
+  };
+
+  const openEditCourse = (course) => {
+    setCourseForm({
+      name: course.name,
+      description: course.description,
+      age_range: course.age_range,
+      level: course.level,
+    });
+    setEditingCourse(course);
+  };
+
+  const handleCourseSubmit = async (e) => {
+    e.preventDefault();
+    setSavingCourse(true);
+    try {
+      const updated = editingCourse
+        ? await updateCourse(editingCourse.id, courseForm)
+        : await createCourse(courseForm);
+      setCourses((prev) => {
+        if (!editingCourse) return [...prev, updated];
+        return prev.map((course) => (course.id === updated.id ? updated : course));
+      });
+      setShowAddCourse(false);
+      setEditingCourse(null);
+      setAlert({ type: 'info', message: `Course '${updated.name}' saved successfully.` });
+    } catch (err) {
+      setAlert({ type: 'error', message: err.message || 'Failed to save course.' });
+    } finally {
+      setSavingCourse(false);
+    }
+  };
+
+  const handleToggleCourse = async (course) => {
+    try {
+      const updated = await setCourseStatus(course.id, !course.is_active);
+      setCourses((prev) => prev.map((item) => (item.id === updated.id ? updated : item)));
+      setAlert({
+        type: 'info',
+        message: `Course '${updated.name}' is now ${updated.is_active ? 'active' : 'inactive'}.`,
+      });
+    } catch (err) {
+      setAlert({ type: 'error', message: err.message || 'Failed to update course status.' });
+    }
+  };
+
   // Handle View Parent Bookings
   const handleViewParentBookings = async (parent) => {
     setSelectedParent(parent);
@@ -223,15 +289,15 @@ function AdminPage({ currentView, onViewChange }) {
             </div>
 
             <div className="metric-card">
-              <span className="metric-label">Today's Load (IST)</span>
-              <span className="metric-value">{overview.today_classes}</span>
-              <span className="metric-hint">Confirmed classes today</span>
+              <span className="metric-label">Upcoming Bookings</span>
+              <span className="metric-value">{overview.upcoming_bookings}</span>
+              <span className="metric-hint">Confirmed classes across future IST dates</span>
             </div>
 
             <div className="metric-card highlight-metric">
-              <span className="metric-label">Remaining Daily Capacity</span>
-              <span className="metric-value">{overview.remaining_capacity}</span>
-              <span className="metric-hint">Dynamic: ({overview.active_mentors} active × 2) - {overview.today_classes} today</span>
+              <span className="metric-label">Daily Capacity</span>
+              <span className="metric-value">{overview.theoretical_capacity}</span>
+              <span className="metric-hint">Dynamic: {overview.active_mentors} active mentors × 2 classes/day</span>
             </div>
 
             <div className="metric-card">
@@ -256,6 +322,13 @@ function AdminPage({ currentView, onViewChange }) {
             onClick={() => setActiveTab('mentors')}
           >
             Mentors Management ({mentors.length})
+          </button>
+          <button
+            type="button"
+            className={`admin-tab-btn ${activeTab === 'courses' ? 'active' : ''}`}
+            onClick={() => setActiveTab('courses')}
+          >
+            Courses Management ({courses.length})
           </button>
           <button
             type="button"
@@ -308,7 +381,7 @@ function AdminPage({ currentView, onViewChange }) {
                         <th>Email</th>
                         <th>Timezone</th>
                         <th>Status</th>
-                        <th>Today's Load</th>
+                        <th>Upcoming Capacity (IST)</th>
                         <th>Daily Capacity</th>
                         <th>Actions</th>
                       </tr>
@@ -326,14 +399,20 @@ function AdminPage({ currentView, onViewChange }) {
                             </span>
                           </td>
                           <td>
-                            <span className={`load-badge ${m.is_full_today ? 'load-full' : ''}`}>
-                              {m.today_classes} class{m.today_classes === 1 ? '' : 'es'}
-                            </span>
+                            {m.upcoming_capacity?.length ? (
+                              <div className="upcoming-capacity-list">
+                                {m.upcoming_capacity.map((item) => (
+                                  <span key={item.ist_date} className="capacity-indicator">
+                                    {item.ist_date} — {item.classes_booked}/{item.capacity}
+                                  </span>
+                                ))}
+                              </div>
+                            ) : (
+                              <span className="sub-text">No upcoming classes</span>
+                            )}
                           </td>
                           <td>
-                            <span className={`capacity-indicator ${m.is_full_today ? 'cap-full' : 'cap-avail'}`}>
-                              {m.capacity_label} {m.is_full_today ? '(Full)' : '(Available)'}
-                            </span>
+                            <span className="capacity-indicator cap-avail">2 classes/day</span>
                           </td>
                           <td>
                             <div className="table-action-btns">
@@ -369,7 +448,68 @@ function AdminPage({ currentView, onViewChange }) {
               </div>
             )}
 
-            {/* TAB 2: PARENTS */}
+            {/* TAB 2: COURSES */}
+            {activeTab === 'courses' && (
+              <div className="admin-section">
+                <div className="section-header-row">
+                  <div>
+                    <h3 className="section-heading">Courses Management</h3>
+                    <p className="section-subheading">
+                      Manage the course catalogue used by new bookings. Existing bookings keep their course relationship.
+                    </p>
+                  </div>
+                  <button type="button" className="btn btn-primary btn-sm" onClick={openAddCourse}>
+                    + Add Course
+                  </button>
+                </div>
+
+                <div className="table-responsive">
+                  <table className="admin-table">
+                    <thead>
+                      <tr>
+                        <th>Name</th>
+                        <th>Description</th>
+                        <th>Age Range</th>
+                        <th>Level</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {courses.map((course) => (
+                        <tr key={course.id} className={!course.is_active ? 'row-inactive' : ''}>
+                          <td><strong>{course.name}</strong></td>
+                          <td>{course.description}</td>
+                          <td>{course.age_range}</td>
+                          <td>{course.level}</td>
+                          <td>
+                            <span className={`status-pill ${course.is_active ? 'pill-active' : 'pill-inactive'}`}>
+                              {course.is_active ? 'Active' : 'Inactive'}
+                            </span>
+                          </td>
+                          <td>
+                            <div className="table-action-btns">
+                              <button type="button" className="btn-action" onClick={() => openEditCourse(course)}>
+                                Edit
+                              </button>
+                              <button
+                                type="button"
+                                className={`btn-action ${course.is_active ? 'btn-deactivate' : 'btn-activate'}`}
+                                onClick={() => handleToggleCourse(course)}
+                              >
+                                {course.is_active ? 'Deactivate' : 'Activate'}
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {/* TAB 3: PARENTS */}
             {activeTab === 'parents' && (
               <div className="admin-section">
                 <div className="section-header-row">
@@ -420,7 +560,7 @@ function AdminPage({ currentView, onViewChange }) {
               </div>
             )}
 
-            {/* TAB 3: BOOKINGS */}
+            {/* TAB 4: BOOKINGS */}
             {activeTab === 'bookings' && (
               <div className="admin-section">
                 <div className="section-header-row">
@@ -494,6 +634,86 @@ function AdminPage({ currentView, onViewChange }) {
                 </div>
               </div>
             )}
+          </div>
+        )}
+
+        {/* MODAL: ADD/EDIT COURSE */}
+        {(showAddCourse || editingCourse) && (
+          <div className="modal-backdrop">
+            <div className="modal-dialog">
+              <div className="modal-header">
+                <h3>{editingCourse ? `Edit Course: ${editingCourse.name}` : 'Add New Course'}</h3>
+                <button
+                  type="button"
+                  className="close-btn"
+                  onClick={() => { setShowAddCourse(false); setEditingCourse(null); }}
+                >
+                  ✕
+                </button>
+              </div>
+              <form onSubmit={handleCourseSubmit}>
+                <div className="modal-body">
+                  <div className="form-group">
+                    <label htmlFor="course-name">Course Name</label>
+                    <input
+                      id="course-name"
+                      type="text"
+                      className="form-input"
+                      value={courseForm.name}
+                      onChange={(e) => setCourseForm({ ...courseForm, name: e.target.value })}
+                      required
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label htmlFor="course-description">Description</label>
+                    <textarea
+                      id="course-description"
+                      className="form-input"
+                      value={courseForm.description}
+                      onChange={(e) => setCourseForm({ ...courseForm, description: e.target.value })}
+                      rows="3"
+                      required
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label htmlFor="course-age-range">Age Range</label>
+                    <input
+                      id="course-age-range"
+                      type="text"
+                      className="form-input"
+                      value={courseForm.age_range}
+                      onChange={(e) => setCourseForm({ ...courseForm, age_range: e.target.value })}
+                      placeholder="e.g. Ages 10–16"
+                      required
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label htmlFor="course-level">Level</label>
+                    <input
+                      id="course-level"
+                      type="text"
+                      className="form-input"
+                      value={courseForm.level}
+                      onChange={(e) => setCourseForm({ ...courseForm, level: e.target.value })}
+                      placeholder="e.g. Intermediate"
+                      required
+                    />
+                  </div>
+                </div>
+                <div className="modal-footer">
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={() => { setShowAddCourse(false); setEditingCourse(null); }}
+                  >
+                    Cancel
+                  </button>
+                  <button type="submit" className="btn btn-primary" disabled={savingCourse}>
+                    {savingCourse ? 'Saving...' : editingCourse ? 'Save Changes' : 'Add Course'}
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
         )}
 

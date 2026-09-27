@@ -11,5 +11,7 @@ class CourseResponse(BaseModel):
     id: int
     name: str
     description: str
+    age_range: str
+    level: str
     is_active: bool
     created_at: datetime

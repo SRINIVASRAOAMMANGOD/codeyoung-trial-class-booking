@@ -93,7 +93,7 @@ function MentorPage({ currentView, onViewChange }) {
               >
                 {mentors.map((m) => (
                   <option key={m.id} value={m.id}>
-                    {m.name} ({m.email}) — {m.is_active ? 'Active' : 'Inactive'} ({m.today_classes}/2 today)
+                    {m.name} ({m.email}) — {m.is_active ? 'Active' : 'Inactive'} ({m.upcoming_capacity?.length || 0} upcoming dates)
                   </option>
                 ))}
               </select>
@@ -111,9 +111,15 @@ function MentorPage({ currentView, onViewChange }) {
                   <span className="stat-label">Timezone:</span>
                   <span className="stat-val">{currentMentor.timezone}</span>
                 </div>
-                <div className="stat-pill">
-                  <span className="stat-label">Today's Load:</span>
-                  <span className="stat-val">{currentMentor.today_classes}/2 classes</span>
+                <div className="stat-pill" style={{ alignItems: 'flex-start' }}>
+                  <span className="stat-label">Upcoming Capacity:</span>
+                  <div className="upcoming-capacity-list">
+                    {currentMentor.upcoming_capacity?.length ? currentMentor.upcoming_capacity.map((item) => (
+                      <span key={item.ist_date} className="stat-val">
+                        {item.ist_date} — {item.classes_booked}/{item.capacity}
+                      </span>
+                    )) : <span className="stat-val">No upcoming classes</span>}
+                  </div>
                 </div>
               </div>
             )}

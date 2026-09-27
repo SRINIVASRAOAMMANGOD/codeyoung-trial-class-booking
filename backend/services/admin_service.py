@@ -9,17 +9,21 @@ Handles:
   - Mentor internal schedule viewing
 """
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 from sqlalchemy import func
 from sqlalchemy.orm import Session, joinedload
 
 from models.booking import Booking
+from models.course import Course
 from models.mentor import Mentor
 from models.parent import Parent
 from schemas.admin import (
     AdminBookingResponse,
     AdminOverviewResponse,
+    CourseAdminResponse,
+    CourseCreateRequest,
+    CourseUpdateRequest,
     MentorAdminResponse,
     MentorCreateRequest,
     MentorUpdateRequest,
@@ -27,6 +31,7 @@ from schemas.admin import (
     ParentAdminResponse,
     ParentBookingDetail,
     ResendEmailRequest,
+    UpcomingCapacityItem,
 )
 from services.email_service import (
     build_parent_email_content,
@@ -50,6 +55,15 @@ def get_admin_overview(db: Session) -> AdminOverviewResponse:
     total_parents = db.query(Parent).count()
     total_bookings = db.query(Booking).filter(Booking.status == "confirmed").count()
 
+    upcoming_bookings = (
+        db.query(Booking)
+        .filter(
+            Booking.status == "confirmed",
+            Booking.slot_utc >= datetime.now(timezone.utc),
+        )
+        .count()
+    )
+
     today_classes = (
         db.query(Booking)
         .filter(
@@ -68,6 +82,7 @@ def get_admin_overview(db: Session) -> AdminOverviewResponse:
         total_parents=total_parents,
         total_bookings=total_bookings,
         today_classes=today_classes,
+        upcoming_bookings=upcoming_bookings,
         theoretical_capacity=theoretical_capacity,
         remaining_capacity=remaining_capacity,
     )
@@ -92,6 +107,21 @@ def get_admin_mentors(db: Session) -> list[MentorAdminResponse]:
     )
     counts_map = dict(today_counts_query)
 
+    upcoming_counts: dict[int, dict[str, int]] = {}
+    upcoming_bookings = (
+        db.query(Booking.mentor_id, Booking.slot_utc)
+        .filter(
+            Booking.status == "confirmed",
+            Booking.slot_utc >= datetime.now(timezone.utc),
+        )
+        .order_by(Booking.slot_utc.asc())
+        .all()
+    )
+    for mentor_id, slot_utc in upcoming_bookings:
+        ist_date = slot_utc.astimezone(_IST).date().isoformat()
+        mentor_dates = upcoming_counts.setdefault(mentor_id, {})
+        mentor_dates[ist_date] = mentor_dates.get(ist_date, 0) + 1
+
     result = []
     for m in mentors:
         classes_today = counts_map.get(m.id, 0)
@@ -105,9 +135,75 @@ def get_admin_mentors(db: Session) -> list[MentorAdminResponse]:
                 today_classes=classes_today,
                 capacity_label=f"{classes_today}/2",
                 is_full_today=classes_today >= 2,
+                upcoming_capacity=[
+                    UpcomingCapacityItem(ist_date=ist_date, classes_booked=count)
+                    for ist_date, count in upcoming_counts.get(m.id, {}).items()
+                ],
             )
         )
     return result
+
+
+def get_admin_courses(db: Session) -> list[CourseAdminResponse]:
+    courses = db.query(Course).order_by(Course.id.asc()).all()
+    return [CourseAdminResponse.model_validate(course) for course in courses]
+
+
+def create_course(db: Session, course_in: CourseCreateRequest) -> Course:
+    clean_name = course_in.name.strip()
+    existing = db.query(Course).filter(func.lower(Course.name) == clean_name.lower()).first()
+    if existing:
+        raise ValueError("A course with this name already exists.")
+
+    course = Course(
+        name=clean_name,
+        description=course_in.description.strip(),
+        age_range=course_in.age_range.strip(),
+        level=course_in.level.strip(),
+        is_active=True,
+    )
+    db.add(course)
+    db.commit()
+    db.refresh(course)
+    return course
+
+
+def update_course(db: Session, course_id: int, course_in: CourseUpdateRequest) -> Course:
+    course = db.query(Course).filter(Course.id == course_id).first()
+    if not course:
+        raise ValueError("Course not found.")
+
+    if course_in.name is not None:
+        clean_name = course_in.name.strip()
+        existing = db.query(Course).filter(
+            func.lower(Course.name) == clean_name.lower(),
+            Course.id != course_id,
+        ).first()
+        if existing:
+            raise ValueError("A course with this name already exists.")
+        course.name = clean_name
+    if course_in.description is not None:
+        course.description = course_in.description.strip()
+    if course_in.age_range is not None:
+        course.age_range = course_in.age_range.strip()
+    if course_in.level is not None:
+        course.level = course_in.level.strip()
+    if course_in.is_active is not None:
+        course.is_active = course_in.is_active
+
+    db.commit()
+    db.refresh(course)
+    return course
+
+
+def update_course_status(db: Session, course_id: int, is_active: bool) -> Course | None:
+    course = db.query(Course).filter(Course.id == course_id).first()
+    if not course:
+        return None
+    course.is_active = is_active
+    db.commit()
+    db.refresh(course)
+    return course
 
 
 def create_mentor(db: Session, mentor_in: MentorCreateRequest) -> Mentor:

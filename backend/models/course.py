@@ -14,6 +14,8 @@ class Course(Base):
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(150), nullable=False, unique=True)
     description = Column(String(500), nullable=False)
+    age_range = Column(String(50), nullable=False, default="All Ages")
+    level = Column(String(50), nullable=False, default="All Levels")
     is_active = Column(Boolean, nullable=False, default=True)
     created_at = Column(
         DateTime(timezone=True),

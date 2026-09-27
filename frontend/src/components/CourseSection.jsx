@@ -1,5 +1,4 @@
-// CourseSection.jsx — Sample course cards.
-// Data is sample/demo content only; no real course management backend exists.
+// CourseSection.jsx — Public course cards.
 
 const COURSE_METADATA = {
   'Coding Fundamentals': {
@@ -29,6 +28,27 @@ const COURSE_METADATA = {
     level: 'Intermediate',
     tag: 'Trending',
     tagColor: 'tag-purple',
+  },
+  'Game Development': {
+    icon: 'Game',
+    age: 'Ages 10–16',
+    level: 'Intermediate',
+    tag: 'Course',
+    tagColor: 'tag-purple',
+  },
+  'App Development': {
+    icon: 'App',
+    age: 'Ages 12–18',
+    level: 'Advanced',
+    tag: 'Course',
+    tagColor: 'tag-teal',
+  },
+  'Data & Analytics': {
+    icon: 'Data',
+    age: 'Ages 14–18',
+    level: 'Advanced',
+    tag: 'Course',
+    tagColor: 'tag-green',
   },
 };
 
@@ -87,43 +107,7 @@ function CourseSection({ onBookTrial }) {
           return { ...c, ...meta, fake: false };
         });
 
-        const extraCourses = [
-          {
-            id: 'fake-1',
-            name: 'Game Development',
-            description: 'Design and code your own interactive 2D and 3D games from scratch.',
-            icon: '🎮',
-            age: 'Ages 10–16',
-            level: 'Intermediate',
-            tag: 'Coming Soon',
-            tagColor: 'tag-purple',
-            fake: true
-          },
-          {
-            id: 'fake-2',
-            name: 'App Development',
-            description: 'Learn to build functional mobile applications for iOS and Android.',
-            icon: '📱',
-            age: 'Ages 12–18',
-            level: 'Advanced',
-            tag: 'Coming Soon',
-            tagColor: 'tag-purple',
-            fake: true
-          },
-          {
-            id: 'fake-3',
-            name: 'Data & Analytics',
-            description: 'Discover how to collect, visualize, and understand data through code.',
-            icon: '📊',
-            age: 'Ages 14–18',
-            level: 'Advanced',
-            tag: 'Coming Soon',
-            tagColor: 'tag-purple',
-            fake: true
-          }
-        ];
-
-        setCourses([...merged, ...extraCourses]);
+        setCourses(merged);
       } catch (err) {
         console.error('Failed to load courses', err);
       } finally {

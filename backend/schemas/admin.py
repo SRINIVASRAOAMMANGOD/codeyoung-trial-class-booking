@@ -13,6 +13,7 @@ class AdminOverviewResponse(BaseModel):
     total_parents: int
     total_bookings: int
     today_classes: int
+    upcoming_bookings: int
     theoretical_capacity: int
     remaining_capacity: int
 
@@ -28,6 +29,62 @@ class MentorAdminResponse(BaseModel):
     today_classes: int
     capacity_label: str
     is_full_today: bool
+    upcoming_capacity: list["UpcomingCapacityItem"]
+
+
+class UpcomingCapacityItem(BaseModel):
+    ist_date: str
+    classes_booked: int
+    capacity: int = 2
+
+
+class CourseAdminResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    name: str
+    description: str
+    age_range: str
+    level: str
+    is_active: bool
+    created_at: datetime
+
+
+class CourseCreateRequest(BaseModel):
+    name: str = Field(..., min_length=1, max_length=150)
+    description: str = Field(..., min_length=1, max_length=500)
+    age_range: str = Field(..., min_length=1, max_length=50)
+    level: str = Field(..., min_length=1, max_length=50)
+
+    @field_validator("name", "description", "age_range", "level")
+    @classmethod
+    def validate_non_empty(cls, value: str) -> str:
+        clean = value.strip()
+        if not clean:
+            raise ValueError("This field cannot be empty.")
+        return clean
+
+
+class CourseUpdateRequest(BaseModel):
+    name: str | None = Field(None, min_length=1, max_length=150)
+    description: str | None = Field(None, min_length=1, max_length=500)
+    age_range: str | None = Field(None, min_length=1, max_length=50)
+    level: str | None = Field(None, min_length=1, max_length=50)
+    is_active: bool | None = None
+
+    @field_validator("name", "description", "age_range", "level")
+    @classmethod
+    def validate_non_empty(cls, value: str | None) -> str | None:
+        if value is None:
+            return value
+        clean = value.strip()
+        if not clean:
+            raise ValueError("This field cannot be empty.")
+        return clean
+
+
+class CourseStatusUpdateRequest(BaseModel):
+    is_active: bool
 
 
 class MentorCreateRequest(BaseModel):
