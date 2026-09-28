@@ -125,6 +125,8 @@ The assignment describes around 20 interested parents per day as demand/context,
 
 ## 4. Application Architecture
 
+![Application Architecture](documentation/images/architecture.png)
+
 ```mermaid
 flowchart LR
         subgraph FE[FRONTEND]
@@ -225,6 +227,8 @@ flowchart LR
 
 ## 6. System Flow
 
+![System Flow](documentation/images/system-flow.png)
+
 ```mermaid
 flowchart TD
     U[Parent] --> F[React Frontend]
@@ -273,6 +277,8 @@ flowchart TD
 *Note: The one-hour class duration, 15:00-21:00 IST anchors, and tomorrow-through-seven-days-ahead booking window are engineering/product decisions implemented by the current code, not explicitly mandated assignment requirements.*
 
 ## 9. Data Model
+
+![Data Model](documentation/images/data-model.png)
 
 ```mermaid
 flowchart TD
