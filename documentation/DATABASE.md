@@ -4,6 +4,8 @@ The Codeyoung Trial Class Booking System relies on PostgreSQL as its persistence
 
 ## Schema Overview
 
+![Database Data Model](images/data-model.png)
+
 The database is built on four core normalized tables: `parents`, `mentors`, `courses`, and `bookings`. All date/time fields (`created_at`, `slot_utc`) are stored as timezone-aware `TIMESTAMPTZ` values, strictly enforcing UTC at rest.
 
 ```mermaid
